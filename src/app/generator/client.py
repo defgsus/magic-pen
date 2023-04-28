@@ -2,7 +2,7 @@ import os
 from functools import partial
 from pathlib import Path
 import threading
-from typing import Union
+from typing import Union, Set, Dict
 
 from src.hf import HuggingfaceSpace, SpacePool
 
@@ -23,7 +23,8 @@ class Client:
         self.result_path = Path(__file__).resolve().parent.parent.parent.parent / "results"
         self.num_digits = 4
         self._lock = threading.Lock()
-        self._spaces = []
+        self._spaces: Set[HuggingfaceSpace] = set()
+        self._space_ids: Dict[str, HuggingfaceSpace] = {}
 
     def stop(self):
         self.pool.stop()
@@ -37,25 +38,39 @@ class Client:
         if space in self._spaces:
             raise ValueError(f"Space {space} is already running")
 
-        self._spaces.append(space)
-        space.finished = partial(self._on_finished, space, Path(path), slug)
+        space_id = self._get_new_space_id(slug)
+        self._spaces.add(space)
+        self._space_ids[space_id] = space
+
+        space.finished = partial(self._on_finished, space, Path(path), slug, space_id)
         self.pool.run(space)
 
     def status(self) -> dict:
         return {
-            id(space): space.state
-            for space in self._spaces
+            space_id: space.status_str()
+            for space_id, space in self._space_ids.items()
         }
 
-    def _on_finished(self, space: HuggingfaceSpace, path: Path, slug: str):
+    def _get_new_space_id(self, slug: str) -> str:
+        space_id = slug
+        count = 2
+        while space_id in self._space_ids:
+            space_id = f"{slug}-{count}"
+        return space_id
+
+    def _on_finished(self, space: HuggingfaceSpace, path: Path, slug: str, space_id: str):
         results = space.result()
         if results:
             for result in results:
                 self._store_result(result, path, slug)
-                try:
-                    self._spaces.remove(space)
-                except ValueError:
-                    pass
+        try:
+            self._spaces.remove(space)
+        except KeyError:
+            pass
+        try:
+            self._space_ids.pop(space_id)
+        except KeyError:
+            pass
 
     def _store_result(self, result, path: Path, filename: str) -> Path:
         with self._lock:

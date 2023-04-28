@@ -39,8 +39,17 @@ class HuggingfaceSpace:
         if self.finished is not None:
             self.finished()
 
+    def status_str(self) -> str:
+        status = self.state
+        if self.state == "wait_queue":
+            try:
+                status = f"{status} {self.status['rank']}/{self.status['queue_size']}"
+            except (KeyError, TypeError):
+                pass
+        return status
+
     def _on_message(self, ws, message):
-        print("MSG:", message)
+        # print("MSG:", message)
         message = json.loads(message)
         if message.get("msg") == "send_hash":
             self.state = "connecting"
@@ -78,16 +87,17 @@ class HuggingfaceSpace:
         elif message.get("msg") == "process_completed":
             self.state = "complete"
             self._result = message
-            print(json.dumps(message, indent=2))
+            # print(json.dumps(message, indent=2))
 
     def _on_error(self, ws, error):
         self.state = "error"
-        print("error:", error)
+        # print("error:", error)
 
     def _on_close(self, ws, close_status_code, close_msg):
-        self.state = "closed"
-        print("### closed ###")
+        pass
+        # self.state = "closed"
+        # print("### closed ###")
 
     def _on_open(self, ws):
         self.state = "open"
-        print("Opened connection")
+        # print("Opened connection")

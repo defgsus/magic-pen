@@ -54,7 +54,7 @@ class MainWindow(QMainWindow):
         widget.prompt_input.setFocus()
 
     def _on_slug_change(self, widget: QWidget, slug: str):
-        for idx in range(self.tab_widget.size()):
+        for idx in range(self.tab_widget.count()):
             w = self.tab_widget.widget(idx)
             if w == widget:
                 self.tab_widget.setTabText(idx, slug)

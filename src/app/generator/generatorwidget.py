@@ -25,6 +25,11 @@ class GeneratorWidget(QWidget):
         l = QVBoxLayout()
         self.setLayout(l)
 
+        l.addWidget(QLabel(self.tr("sub-directory"), self))
+        self.path_input = QPlainTextEdit(self)
+        self.path_input.setFixedHeight(30)
+        l.addWidget(self.path_input)
+
         l.addWidget(QLabel(self.tr("session slug"), self))
         self.slug_input = QPlainTextEdit(self)
         self.slug_input.setFixedHeight(30)
@@ -52,7 +57,7 @@ class GeneratorWidget(QWidget):
         lh.addWidget(self.guidance_label)
         lh.addWidget(self.guidance_input)
 
-        button = QPushButton(self.tr("run"), self)
+        button = QPushButton(self.tr("&start"), self)
         l.addWidget(button)
         button.clicked.connect(self.slot_run)
 
@@ -70,6 +75,7 @@ class GeneratorWidget(QWidget):
 
     def parameters(self) -> dict:
         return {
+            "path": self.path_input.toPlainText(),
             "slug": self.slug_input.toPlainText(),
             "prompt": self.prompt_input.toPlainText(),
             "negative_prompt": self.negative_prompt_input.toPlainText() or "",
@@ -79,12 +85,8 @@ class GeneratorWidget(QWidget):
     def slot_run(self):
         params = self.parameters()
 
+        path = params.pop("path") or ""
         slug = params.pop("slug") or "undefined"
-        path = ""
-        if "/" in slug:
-            slug = slug.split("/")
-            path = "/".join(slug[:-1])
-            slug = slug[-1]
 
         space = StableDiffusionSpace(**params)
         Client.singleton().run_space(space, path, slug)
