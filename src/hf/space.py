@@ -13,13 +13,19 @@ class HuggingfaceSpace:
             parameters: Iterable[Any] = tuple(),
     ):
         self.websocket_url = websocket_url
-        self.parameters = list(parameters)
+        self._parameters = list(parameters)
         self._result = None
         self.state = "pending"
         self.status = None
         self._ws: Optional[websocket.WebSocketApp] = None
         self._session_hash: Optional[str] = None
         self.finished: Optional[Callable] = None
+
+    def parameters(self) -> dict:
+        return {
+            i: value
+            for i, value in enumerate(self._parameters)
+        }
 
     def result(self):
         return self._result
@@ -78,7 +84,7 @@ class HuggingfaceSpace:
             self._ws.send(json.dumps({
                 "fn_index": 3,
                 "session_hash": self._session_hash,
-                "data": self.parameters,
+                "data": self._parameters,
             }))
 
         elif message.get("msg") == "process_starts":

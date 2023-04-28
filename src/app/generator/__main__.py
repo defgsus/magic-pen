@@ -1,16 +1,27 @@
 import sys
 from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
 
+import qdarkstyle
 
 from src.app.generator.mainwindow import MainWindow
 from src.app.generator.client import Client
 
-app = QApplication(sys.argv)
 
-win = MainWindow()
-win.show()
+def main():
+    app = QApplication(sys.argv)
 
-result = app.exec_()
+    app.setStyleSheet(qdarkstyle.load_stylesheet())
+    screen = app.primaryScreen()
 
-Client.singleton().stop()
-sys.exit(result)
+    win = MainWindow(screen.availableGeometry())
+    win.show()
+
+    result = app.exec_()
+
+    Client.singleton().stop()
+    sys.exit(result)
+
+
+if __name__ == "__main__":
+    main()

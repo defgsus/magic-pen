@@ -21,6 +21,13 @@ class StableDiffusionSpace(HuggingfaceSpace):
             parameters=[prompt, negative_prompt, guidance],
         )
 
+    def parameters(self) -> dict:
+        return {
+            "prompt": self._parameters[0],
+            "negative_prompt": self._parameters[1],
+            "guidance": self._parameters[2],
+        }
+
     def result(self) -> List[ImageResult]:
         if not self._result:
             return []

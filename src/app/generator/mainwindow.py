@@ -11,7 +11,7 @@ from .statuswidget import StatusWidget
 
 class MainWindow(QMainWindow):
 
-    def __init__(self):
+    def __init__(self, geometry: QRect):
         super().__init__()
 
         self.setWindowTitle(self.tr("The Generator"))
@@ -20,7 +20,7 @@ class MainWindow(QMainWindow):
         self._create_main_menu()
         self._create_widgets()
 
-        self.setGeometry(0, 0, 800, 600)
+        self.setGeometry(geometry)
 
     def _create_main_menu(self):
         menu = self.menuBar().addMenu(self.tr("&File"))

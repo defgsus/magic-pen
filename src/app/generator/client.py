@@ -1,8 +1,9 @@
+import json
 import os
 from functools import partial
 from pathlib import Path
 import threading
-from typing import Union, Set, Dict
+from typing import Union, Set, Dict, Optional
 
 from src.hf import HuggingfaceSpace, SpacePool
 
@@ -62,7 +63,7 @@ class Client:
         results = space.result()
         if results:
             for result in results:
-                self._store_result(result, path, slug)
+                self._store_result(space, result, path, slug)
         try:
             self._spaces.remove(space)
         except KeyError:
@@ -72,13 +73,13 @@ class Client:
         except KeyError:
             pass
 
-    def _store_result(self, result, path: Path, filename: str) -> Path:
+    def _store_result(self, space: HuggingfaceSpace, result, path: Path, filename: str) -> Path:
         with self._lock:
             full_path = self.result_path / path
             os.makedirs(full_path, exist_ok=True)
 
-            def _get_full_name(count):
-                return full_path / f"{filename}-{count:0{self.num_digits}d}.{result.extension}"
+            def _get_full_name(count: int, ext: Optional[str] = None):
+                return full_path / f"{filename}-{count:0{self.num_digits}d}.{ext or result.extension}"
 
             count = 0
             full_name = _get_full_name(count)
@@ -100,4 +101,8 @@ class Client:
 
             print(f"SAVING {full_name}")
             result.save(full_name)
+
+            data_name = _get_full_name(count, "json")
+            data_name.write_text(json.dumps(space.parameters()))
+
             return full_name
