@@ -6,6 +6,6 @@ class Stage:
     def __init__(self):
         pass
 
-    def apply_to_image(self, image: ImageType):
+    def step(self, image: ImageType) -> ImageType:
         raise NotImplemented
 
