@@ -3,7 +3,7 @@ import os
 from functools import partial
 from pathlib import Path
 import threading
-from typing import Union, Set, Dict, Optional
+from typing import Union, Set, Dict, Optional, Callable
 
 from src.hf import HuggingfaceSpace, SpacePool
 
@@ -18,8 +18,8 @@ class Client:
             cls._singleton = Client()
         return cls._singleton
 
-    def __init__(self):
-        self.pool = SpacePool()
+    def __init__(self, pool_size: int = 20):
+        self.pool = SpacePool(size=pool_size)
         self.pool.start()
         self.result_path = Path(__file__).resolve().parent.parent.parent.parent / "results"
         self.num_digits = 4
@@ -35,6 +35,7 @@ class Client:
             space: HuggingfaceSpace,
             path: Union[str, Path],
             slug: str,
+            callback: Optional[Callable] = None,
     ):
         if space in self._spaces:
             raise ValueError(f"Space {space} is already running")
@@ -43,7 +44,7 @@ class Client:
         self._spaces.add(space)
         self._space_ids[space_id] = space
 
-        space.finished = partial(self._on_finished, space, Path(path), slug, space_id)
+        space.finished = partial(self._on_finished, space, Path(path), slug, space_id, callback)
         self.pool.run(space)
 
     def status(self) -> dict:
@@ -57,13 +58,25 @@ class Client:
         count = 2
         while space_id in self._space_ids:
             space_id = f"{slug}-{count}"
+            count += 1
         return space_id
 
-    def _on_finished(self, space: HuggingfaceSpace, path: Path, slug: str, space_id: str):
+    def _on_finished(
+            self,
+            space: HuggingfaceSpace,
+            path: Path,
+            slug: str,
+            space_id: str,
+            callback: Optional[Callable],
+    ):
         results = space.result()
         if results:
             for result in results:
                 self._store_result(space, result, path, slug)
+
+        if callback:
+            callback()
+
         try:
             self._spaces.remove(space)
         except KeyError:

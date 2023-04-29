@@ -15,12 +15,14 @@ from .imagelistwidget import ImageListWidget
 class GeneratorWidget(QWidget):
 
     signal_slug_changed = pyqtSignal(QWidget, str)
+    signal_run_finished = pyqtSignal()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._auto_update_slug = True
         self._ignore_slug_change = False
         self._create_widgets()
+        self.signal_run_finished.connect(self.slot_update_files)
 
     def _create_widgets(self):
         l0 = QHBoxLayout(self)
@@ -28,27 +30,25 @@ class GeneratorWidget(QWidget):
         l = QVBoxLayout()
         l0.addLayout(l)
 
-        l.addWidget(QLabel(self.tr("sub-directory"), self))
-        self.path_input = QPlainTextEdit(self)
-        self.path_input.setFixedHeight(30)
+        l.addWidget(QLabel(self.tr("sub directory"), self))
+        self.path_input = QLineEdit(self)
         self.path_input.textChanged.connect(self.slot_on_path_change)
         l.addWidget(self.path_input)
 
-        l.addWidget(QLabel(self.tr("session slug"), self))
-        self.slug_input = QPlainTextEdit(self)
-        self.slug_input.setFixedHeight(30)
+        l.addWidget(QLabel(self.tr("filename slug"), self))
+        self.slug_input = QLineEdit(self)
         self.slug_input.textChanged.connect(self.slot_on_slug_change)
         l.addWidget(self.slug_input)
 
         l.addWidget(QLabel(self.tr("prompt"), self))
         self.prompt_input = QPlainTextEdit(self)
-        self.prompt_input.setMaximumHeight(100)
+        self.prompt_input.setMaximumHeight(180)
         self.prompt_input.textChanged.connect(self.slot_on_prompt_change)
         l.addWidget(self.prompt_input)
 
         l.addWidget(QLabel(self.tr("negative prompt"), self))
         self.negative_prompt_input = QPlainTextEdit(self)
-        self.negative_prompt_input.setMaximumHeight(100)
+        self.negative_prompt_input.setMaximumHeight(60)
         l.addWidget(self.negative_prompt_input)
 
         l.addWidget(QLabel(self.tr("guidance"), self))
@@ -71,15 +71,23 @@ class GeneratorWidget(QWidget):
 
     def parameters(self) -> dict:
         return {
-            "path": self.path_input.toPlainText().strip(),
-            "slug": self.slug_input.toPlainText().strip(),
+            "path": self.path_input.text().strip(),
+            "slug": self.slug_input.text().strip(),
             "prompt": self.prompt_input.toPlainText().strip(),
             "negative_prompt": self.negative_prompt_input.toPlainText().strip(),
             "guidance": self.guidance_input.value(),
         }
 
+    def set_parameters(self, params: dict):
+        self._ignore_slug_change = True
+        self.path_input.setText(params.get("path") or "")
+        self.slug_input.setText(params.get("slug") or "")
+        self.prompt_input.setPlainText(params.get("prompt") or "")
+        self.negative_prompt_input.setPlainText(params.get("negative_prompt") or "")
+        self.guidance_input.setValue(params.get("guidance") or "")
+
     def slot_on_slug_change(self):
-        slug = self.slug_input.toPlainText()
+        slug = self.slug_input.text()
 
         if not self._ignore_slug_change:
             self._auto_update_slug = True if not slug else False
@@ -87,12 +95,13 @@ class GeneratorWidget(QWidget):
         self.signal_slug_changed.emit(self, slug)
 
     def slot_on_path_change(self):
-        self.image_list.set_path(Client.singleton().result_path / self.path_input.toPlainText())
+        params = self.parameters()
+        self.image_list.set_path(Client.singleton().result_path / params["path"])
 
     def slot_on_prompt_change(self):
         if self._auto_update_slug:
             self._ignore_slug_change = True
-            self.slug_input.setPlainText(sluggify(self.prompt_input.toPlainText()))
+            self.slug_input.setText(sluggify(self.prompt_input.toPlainText()))
             self._ignore_slug_change = False
 
     def slot_on_guidance_change(self):
@@ -105,10 +114,16 @@ class GeneratorWidget(QWidget):
         slug = params.pop("slug") or "undefined"
 
         space = StableDiffusionSpace(**params)
-        Client.singleton().run_space(space, path, slug)
+        Client.singleton().run_space(space, path, slug, callback=self._finish_callback)
+
+    def slot_update_files(self):
+        self.image_list.set_path(self.image_list.path)
+
+    def _finish_callback(self):
+        self.signal_run_finished.emit()
 
 
-def sluggify(s : str) -> str:
+def sluggify(s : str, max_length: int = 35) -> str:
     s = unicodedata.normalize('NFKD', s.lower()).encode("ascii", "ignore").decode("ascii")
     result = ""
     for c in s:
@@ -117,4 +132,8 @@ def sluggify(s : str) -> str:
         else:
             if not result.endswith("-"):
                 result += "-"
-    return result
+
+        if len(result) >= max_length:
+            break
+
+    return result.strip("-")

@@ -1,4 +1,7 @@
+import json
 from functools import partial
+from typing import List
+from pathlib import Path
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -16,11 +19,42 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle(self.tr("The Generator"))
 
+        self.sessions: List[GeneratorWidget] = []
         self.tab_menus = dict()
         self._create_main_menu()
         self._create_widgets()
 
         self.setGeometry(geometry)
+
+        self.slot_load_sessions()
+
+    def config_filename(self) -> Path:
+        return Path(__file__).resolve().parent.parent.parent.parent / ".generator-config.json"
+
+    def slot_save_sessions(self):
+        sessions = []
+        for gen in self.sessions:
+            params = gen.parameters()
+            sessions.append(params)
+
+        data = {
+            "sessions": sessions,
+        }
+        self.config_filename().write_text(json.dumps(data, indent=2))
+
+    def slot_load_sessions(self):
+        try:
+            data = json.loads(self.config_filename().read_text())
+        except (IOError, json.JSONDecodeError):
+            return
+
+        self.tab_widget.clear()
+        self.sessions.clear()
+
+        for session in data["sessions"]:
+            widget = GeneratorWidget(self)
+            widget.set_parameters(session)
+            self._add_generator_widget(widget)
 
     def _create_main_menu(self):
         menu = self.menuBar().addMenu(self.tr("&File"))
@@ -43,15 +77,28 @@ class MainWindow(QMainWindow):
         self.status_widget = StatusWidget(self)
         l.addWidget(self.status_widget)
 
+    def close(self) -> bool:
+        if not super().close():
+            return False
+
+        # self.slot_save_sessions()
+        # Client.singleton().stop()
+        return True
+
     def slot_exit(self):
-        Client.singleton().stop()
         self.close()
 
     def slot_new_session(self):
         widget = GeneratorWidget(self)
+        tab_index = self._add_generator_widget(widget)
+        self.tab_widget.setCurrentIndex(tab_index)
+
+    def _add_generator_widget(self, widget: GeneratorWidget) -> int:
         tab_index = self.tab_widget.addTab(widget, "new session")
         widget.signal_slug_changed.connect(self._on_slug_change)
         widget.prompt_input.setFocus()
+        self.sessions.append(widget)
+        return tab_index
 
     def _on_slug_change(self, widget: QWidget, slug: str):
         for idx in range(self.tab_widget.count()):

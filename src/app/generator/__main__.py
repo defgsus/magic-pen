@@ -15,6 +15,7 @@ def main():
     screen = app.primaryScreen()
 
     win = MainWindow(screen.availableGeometry())
+    app.aboutToQuit.connect(win.slot_save_sessions)
     win.show()
 
     result = app.exec_()

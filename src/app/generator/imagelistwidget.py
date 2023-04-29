@@ -62,6 +62,7 @@ class ListView(QListView):
 
     def selectionChanged(self, selected: QItemSelection, deselected):
         indexes = selected.indexes()
+        print("SEL", indexes)
         if indexes:
             index = indexes[0]
         else:
@@ -77,7 +78,8 @@ class ImageListWidget(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._create_widgets()
-        self.set_path(Client.singleton().result_path)
+        self.path = Client.singleton().result_path
+        self.set_path(self.path)
 
     def _create_widgets(self):
         self.data_model = FileListModel([], self)
@@ -102,12 +104,17 @@ class ImageListWidget(QWidget):
         self.list_widget.signal_index_changed.connect(self._slot_clicked)
 
     def set_path(self, path: Union[str, Path]):
-        path = Path(path)
-        self.path_label.setText(str(path))
+        previous_path = None
+        index = self.list_widget.currentIndex()
+        if index.isValid():
+            previous_path = self.data_model.files[index.row()]["path"]
+
+        self.path = Path(path)
+        self.path_label.setText(str(self.path))
 
         try:
             all_entries = sorted(
-                os.scandir(path),
+                os.scandir(self.path),
                 key=lambda e: e.stat().st_mtime,
                 reverse=True,
             )
@@ -126,18 +133,27 @@ class ImageListWidget(QWidget):
         self.data_model = FileListModel(files_data, self)
         self.list_widget.setModel(self.data_model)
 
-        if files_data:
-            self.image_label.setPixmap(QPixmap(files_data[0]["path"]))
+        if self.data_model.files:
+            new_index = None
+            if previous_path:
+                for i, file in enumerate(self.data_model.files):
+                    if file["path"] == previous_path:
+                        new_index = self.data_model.index(i)
+                        break
+
+            if new_index is None:
+                new_index = self.data_model.index(0)
+
+            self.list_widget.setCurrentIndex(new_index)
+            self._slot_clicked(new_index)
+
         else:
             self.image_label.clear()
 
     def _slot_clicked(self, index: QModelIndex):
-        # from .imagewindow import ImageWindow
         if index.isValid():
             file = self.data_model.files[index.row()]
             self.image_label.setPixmap(QPixmap(file["path"]))
         else:
             self.image_label.clear()
-        #window = ImageWindow(file["path"])
-        #window.show()
 
