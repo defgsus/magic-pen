@@ -1,7 +1,7 @@
 This is supposed to become a painting app utilizing all the trippy neural image generation techniques.
 but i`m quite lacking time and GPU memory.
 
-But here`s a hack to run the stable-diffusion space on huggingface.co in a Qt application and
+But here's a hack to run the stable-diffusion space on huggingface.co in a Qt application and
 save all images to a `./results/` folder:
 
 ```shell
