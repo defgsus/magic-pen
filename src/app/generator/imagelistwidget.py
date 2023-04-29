@@ -62,7 +62,6 @@ class ListView(QListView):
 
     def selectionChanged(self, selected: QItemSelection, deselected):
         indexes = selected.indexes()
-        print("SEL", indexes)
         if indexes:
             index = indexes[0]
         else:

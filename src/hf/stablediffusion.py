@@ -29,7 +29,7 @@ class StableDiffusionSpace(HuggingfaceSpace):
         }
 
     def result(self) -> List[ImageResult]:
-        if not self._result:
+        if not (self._result and self._result.get("output") and self._result["output"].get("data")):
             return []
 
         images = []

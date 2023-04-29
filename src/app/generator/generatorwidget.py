@@ -123,7 +123,7 @@ class GeneratorWidget(QWidget):
         self.signal_run_finished.emit()
 
 
-def sluggify(s : str, max_length: int = 35) -> str:
+def sluggify(s : str, max_length: int = 45) -> str:
     s = unicodedata.normalize('NFKD', s.lower()).encode("ascii", "ignore").decode("ascii")
     result = ""
     for c in s:
