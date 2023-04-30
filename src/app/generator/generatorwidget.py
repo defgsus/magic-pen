@@ -96,8 +96,8 @@ class GeneratorWidget(QWidget):
     def set_parameters(self, params: dict):
         self._ignore_slug_change = True
         self.path_input.setText(params.get("path") or "")
-        self.slug_input.setText(params.get("slug") or "")
         self.prompt_input.setPlainText(params.get("prompt") or "")
+        self.slug_input.setText(params.get("slug") or "")
         self.negative_prompt_input.setPlainText(params.get("negative_prompt") or "")
         self.guidance_input.setValue(params.get("guidance") or "")
         self.auto_update_slug_checkbox.setChecked(
