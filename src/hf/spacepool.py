@@ -65,7 +65,7 @@ class SpacePool:
     def _mainloop(self):
         while not self._do_stop:
             try:
-                action = self._queue.get(timeout=1)
+                action = self._queue.get(timeout=.5)
 
                 if action.get("space"):
                     action["space"].run()

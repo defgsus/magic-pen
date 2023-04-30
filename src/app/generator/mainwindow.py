@@ -14,19 +14,50 @@ from .statuswidget import StatusWidget
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, geometry: QRect):
+    def __init__(self):
         super().__init__()
 
         self.setWindowTitle(self.tr("The Generator"))
+        self.setWindowFlag(Qt.WindowMinMaxButtonsHint, True)
 
         self.sessions: List[GeneratorWidget] = []
         self.tab_menus = dict()
         self._create_main_menu()
         self._create_widgets()
 
-        self.setGeometry(geometry)
-
         self.slot_load_sessions()
+
+    def _create_main_menu(self):
+        menu = self.menuBar().addMenu(self.tr("&File"))
+
+        new_menu = menu.addMenu(self.tr("New"))
+
+        menu.addAction(self.tr("E&xit"), self.slot_exit)
+
+        new_menu.addAction(self.tr("New &Session"), self.slot_new_session, QKeySequence("Ctrl+T"))
+
+    def _create_widgets(self):
+        parent = QWidget(self)
+        self.setCentralWidget(parent)
+        l = QVBoxLayout(parent)
+
+        self.tab_widget = QTabWidget(parent)
+        self.tab_widget.currentChanged.connect(self._on_tab_changed)
+        l.addWidget(self.tab_widget)
+
+        self.status_widget = StatusWidget(parent)
+        l.addWidget(self.status_widget)
+
+    def close(self) -> bool:
+        if not super().close():
+            return False
+
+        # self.slot_save_sessions()
+        # Client.singleton().stop()
+        return True
+
+    def slot_exit(self):
+        self.close()
 
     def config_filename(self) -> Path:
         return Path(__file__).resolve().parent.parent.parent.parent / ".generator-config.json"
@@ -53,40 +84,8 @@ class MainWindow(QMainWindow):
 
         for session in data["sessions"]:
             widget = GeneratorWidget(self)
-            widget.set_parameters(session)
             self._add_generator_widget(widget)
-
-    def _create_main_menu(self):
-        menu = self.menuBar().addMenu(self.tr("&File"))
-
-        new_menu = menu.addMenu(self.tr("New"))
-
-        menu.addAction(self.tr("E&xit"), self.slot_exit)
-
-        new_menu.addAction(self.tr("New &Session"), self.slot_new_session, QKeySequence("Ctrl+T"))
-
-    def _create_widgets(self):
-        parent = QWidget(self)
-        self.setCentralWidget(parent)
-        l = QVBoxLayout(parent)
-
-        self.tab_widget = QTabWidget(self)
-        self.tab_widget.currentChanged.connect(self._on_tab_changed)
-        l.addWidget(self.tab_widget)
-
-        self.status_widget = StatusWidget(self)
-        l.addWidget(self.status_widget)
-
-    def close(self) -> bool:
-        if not super().close():
-            return False
-
-        # self.slot_save_sessions()
-        # Client.singleton().stop()
-        return True
-
-    def slot_exit(self):
-        self.close()
+            widget.set_parameters(session)
 
     def slot_new_session(self):
         widget = GeneratorWidget(self)
@@ -98,6 +97,7 @@ class MainWindow(QMainWindow):
         widget.signal_slug_changed.connect(self._on_slug_change)
         widget.prompt_input.setFocus()
         self.sessions.append(widget)
+        self._on_slug_change(widget, widget.slug_input.text())
         return tab_index
 
     def _on_slug_change(self, widget: QWidget, slug: str):

@@ -11,6 +11,11 @@ from PyQt5.QtWidgets import *
 from .client import Client
 
 
+def meta_filename(path: Union[str, Path]) -> Path:
+    path, ext = os.path.splitext(str(path))
+    return Path(f"{path}.json")
+
+
 class FileListModel(QAbstractListModel):
     def __init__(self, files: List[dict], parent=None, *args):
         QAbstractListModel.__init__(self, parent, *args)
@@ -22,31 +27,35 @@ class FileListModel(QAbstractListModel):
 
     def data(self, index: QModelIndex, role=None):
         if index.isValid():
-            file = self.files[index.row()]
+            file = self.get_file(index)
 
             if role == Qt.DecorationRole:
                 # print(index.row())
                 return QPixmap(file["path"]).scaled(150, 150)
 
-            if role == Qt.DisplayRole:
-                lines = [file["name"]]
-                for key, value in self.get_file_data(file["path"]).items():
-                    if key == "negative_prompt" and not value:
-                        continue
-                    if key == "guidance" and value == 9:
-                        continue
-                    if len(lines) == 1:
-                        lines.append("")
-                    lines.append(f"{key}: {value}")
-
-                return QVariant("\n".join(lines))
+            if role == Qt.DisplayRole or role == Qt.ToolTipRole:
+                return QVariant(self.get_param_string(file))
 
         return QVariant()
 
-    def get_file_data(self, path: str) -> dict:
+    def get_file(self, index: QModelIndex) -> dict:
+        return self.files[index.row()]
+
+    def get_param_string(self, file: dict) -> str:
+        lines = [file["name"]]
+        for key, value in self.get_file_meta(file["path"]).items():
+            if key == "negative_prompt" and not value:
+                continue
+            if key == "guidance" and value == 9:
+                continue
+            if len(lines) == 1:
+                lines.append("")
+            lines.append(f"{key}: {value}")
+        return "\n".join(lines)
+
+    def get_file_meta(self, path: str) -> dict:
         if path not in self.data_cache:
-            path, ext = os.path.splitext(path)
-            path = Path(f"{path}.json")
+            path = meta_filename(path)
             try:
                 data = json.loads(path.read_text())
             except (IOError, json.JSONDecodeError):
@@ -54,6 +63,18 @@ class FileListModel(QAbstractListModel):
 
             self.data_cache[path] = data
         return self.data_cache[path]
+
+    def delete_file(self, index: QModelIndex):
+        path = Path(self.get_file(index)["path"])
+        if path.exists():
+            os.remove(path)
+
+        path = meta_filename(path)
+        if path.exists():
+            os.remove(path)
+
+        self.files.pop(index.row())
+        self.dataChanged.emit(self.index(0), self.index(len(self.files)))
 
 
 class ListView(QListView):
@@ -90,8 +111,20 @@ class ImageListWidget(QWidget):
         lh = QHBoxLayout()
         lv.addLayout(lh)
 
+        lv2 = QVBoxLayout()
+        lh.addLayout(lv2)
+
+        self.toolbar = QToolBar(self)
+        action = QAction("❌", self.toolbar)
+        action.setShortcut(Qt.Key_D)
+        action.setToolTip(self.tr("Delete image (press D)"))
+        action.triggered.connect(self._slot_delete_action)
+
+        self.toolbar.addAction(action)
+        lv2.addWidget(self.toolbar)
+
         self.image_label = QLabel(self)
-        lh.addWidget(self.image_label)
+        lv2.addWidget(self.image_label)
 
         self.list_widget = ListView(self)
         lh.addWidget(self.list_widget)
@@ -102,11 +135,39 @@ class ImageListWidget(QWidget):
         self.list_widget.setGridSize(QSize(150, 150))
         self.list_widget.signal_index_changed.connect(self._slot_clicked)
 
+    def _slot_delete_action(self, down: bool):
+        index = self.list_widget.currentIndex()
+        if index.isValid():
+            self.slot_delete_image(index)
+
+    def slot_delete_image(self, index: QModelIndex()):
+        if not index.isValid():
+            return
+
+        file = self.data_model.get_file(index)
+        button = QMessageBox.question(
+            self,
+            self.tr("Delete File"),
+            f"Delete {file['path']}?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if button == QMessageBox.Yes:
+            self.data_model.delete_file(index)
+            if self.data_model.files:
+                new_index = self.data_model.index(
+                    min(len(self.data_model.files) - 1, index.row())
+                )
+            else:
+                new_index = QModelIndex()
+            self.list_widget.setCurrentIndex(new_index)
+            self._slot_clicked(new_index)
+
     def set_path(self, path: Union[str, Path]):
         previous_path = None
         index = self.list_widget.currentIndex()
         if index.isValid():
-            previous_path = self.data_model.files[index.row()]["path"]
+            previous_path = self.data_model.get_file(index)["path"]
 
         self.path = Path(path)
         self.path_label.setText(str(self.path))
@@ -147,12 +208,11 @@ class ImageListWidget(QWidget):
             self._slot_clicked(new_index)
 
         else:
-            self.image_label.clear()
+            self._slot_clicked(QModelIndex())
 
     def _slot_clicked(self, index: QModelIndex):
         if index.isValid():
-            file = self.data_model.files[index.row()]
+            file = self.data_model.get_file(index)
             self.image_label.setPixmap(QPixmap(file["path"]))
         else:
             self.image_label.clear()
-

@@ -14,9 +14,11 @@ def main():
     app.setStyleSheet(qdarkstyle.load_stylesheet())
     screen = app.primaryScreen()
 
-    win = MainWindow(screen.availableGeometry())
+    win = MainWindow()
     app.aboutToQuit.connect(win.slot_save_sessions)
-    win.show()
+
+    win.setGeometry(screen.availableGeometry())
+    win.showMaximized()
 
     result = app.exec_()
 

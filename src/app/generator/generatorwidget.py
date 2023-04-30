@@ -4,8 +4,6 @@ import unicodedata
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-#import PyQt5.QtWidgets
-#PyQt5.QtWidgets.QPlainTextEdit
 
 from src.hf import StableDiffusionSpace
 from .client import Client
@@ -19,7 +17,6 @@ class GeneratorWidget(QWidget):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._auto_update_slug = True
         self._ignore_slug_change = False
         self._create_widgets()
         self.signal_run_finished.connect(self.slot_update_files)
@@ -30,30 +27,47 @@ class GeneratorWidget(QWidget):
         l = QVBoxLayout()
         l0.addLayout(l)
 
-        l.addWidget(QLabel(self.tr("sub directory"), self))
+        def _add_control(label: str, widget: QWidget):
+            container = QWidget(self)
+            layout = QVBoxLayout(container)
+            label = QLabel(label, container)
+            font = QFont(label.font())
+            font.setBold(True)
+            label.setFont(font)
+            layout.addWidget(label, 0)
+            layout.addWidget(widget, 2)
+            l.addWidget(container)
+
         self.path_input = QLineEdit(self)
         self.path_input.textChanged.connect(self.slot_on_path_change)
-        l.addWidget(self.path_input)
+        _add_control(self.tr("sub directory"), self.path_input)
 
-        l.addWidget(QLabel(self.tr("filename slug"), self))
+        slug_control = QWidget(self)
+        l2 = QVBoxLayout(slug_control)
+        l3 = QHBoxLayout()
+        self.auto_update_slug_checkbox = QCheckBox(self)
+        self.auto_update_slug_checkbox.setChecked(True)
+        self.auto_update_slug_checkbox.setToolTip(self.tr("auto update from prompt"))
+        l3.addWidget(self.auto_update_slug_checkbox, 0)
+        l3.addWidget(QLabel(self.tr("auto update")), 2)
+        l2.addLayout(l3)
+
         self.slug_input = QLineEdit(self)
         self.slug_input.textChanged.connect(self.slot_on_slug_change)
-        l.addWidget(self.slug_input)
+        l2.addWidget(self.slug_input)
+        _add_control(self.tr("filename slug"), slug_control)
 
-        l.addWidget(QLabel(self.tr("prompt"), self))
         self.prompt_input = QPlainTextEdit(self)
         self.prompt_input.setMaximumHeight(180)
         self.prompt_input.textChanged.connect(self.slot_on_prompt_change)
-        l.addWidget(self.prompt_input)
+        _add_control(self.tr("prompt"), self.prompt_input)
 
-        l.addWidget(QLabel(self.tr("negative prompt"), self))
         self.negative_prompt_input = QPlainTextEdit(self)
         self.negative_prompt_input.setMaximumHeight(60)
-        l.addWidget(self.negative_prompt_input)
+        _add_control(self.tr("negative prompt"), self.negative_prompt_input)
 
-        l.addWidget(QLabel(self.tr("guidance"), self))
-        lh = QHBoxLayout()
-        l.addLayout(lh)
+        guidance_control = QWidget(self)
+        lh = QHBoxLayout(guidance_control)
         self.guidance_input = QSlider(Qt.Horizontal, self)
         self.guidance_input.setRange(0, 50)
         self.guidance_input.setValue(9)
@@ -61,6 +75,7 @@ class GeneratorWidget(QWidget):
         self.guidance_input.valueChanged.connect(self.slot_on_guidance_change)
         lh.addWidget(self.guidance_label)
         lh.addWidget(self.guidance_input)
+        _add_control(self.tr("guidance"), guidance_control)
 
         button = QPushButton(self.tr("&start"), self)
         l.addWidget(button)
@@ -85,12 +100,16 @@ class GeneratorWidget(QWidget):
         self.prompt_input.setPlainText(params.get("prompt") or "")
         self.negative_prompt_input.setPlainText(params.get("negative_prompt") or "")
         self.guidance_input.setValue(params.get("guidance") or "")
+        self.auto_update_slug_checkbox.setChecked(
+            sluggify(self.prompt_input.toPlainText()) == self.slug_input.text()
+        )
+        self._ignore_slug_change = False
 
     def slot_on_slug_change(self):
         slug = self.slug_input.text()
 
         if not self._ignore_slug_change:
-            self._auto_update_slug = True if not slug else False
+            self.auto_update_slug_checkbox.setChecked(True if not slug else False)
 
         self.signal_slug_changed.emit(self, slug)
 
@@ -99,7 +118,7 @@ class GeneratorWidget(QWidget):
         self.image_list.set_path(Client.singleton().result_path / params["path"])
 
     def slot_on_prompt_change(self):
-        if self._auto_update_slug:
+        if self.auto_update_slug_checkbox.isChecked():
             self._ignore_slug_change = True
             self.slug_input.setText(sluggify(self.prompt_input.toPlainText()))
             self._ignore_slug_change = False
