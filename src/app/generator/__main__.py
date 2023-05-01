@@ -1,4 +1,6 @@
 import sys
+import time
+
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
@@ -17,8 +19,9 @@ def main():
     win = MainWindow()
     app.aboutToQuit.connect(win.slot_save_sessions)
 
-    win.setGeometry(screen.availableGeometry())
     win.showMaximized()
+    time.sleep(.1)
+    win.setGeometry(screen.availableGeometry())
 
     result = app.exec_()
 
