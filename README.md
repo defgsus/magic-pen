@@ -10,8 +10,11 @@ pip install -r requirements.txt
 python src/app/generator
 ```
 
+![screenshot of generator](docs/img/generator-screenshot.png)
+
 - `sub directory`: is the path below `./results/` and can be empty
 - `filename slug`: is the beginning of the filename and will be appended with increasing numbers
 - `prompt`, `negative prompt` and `guidance` do the usual thing
 
-All jobs run in parallel ;-)
+You can create multiple tabs for different prompts and request processing of the prompts multiple times
+at once. All jobs run in parallel ;-)
