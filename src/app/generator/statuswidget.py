@@ -26,10 +26,15 @@ class StatusWidget(QWidget):
         self.setLayout(l)
 
         self.status_label = QLabel(self)
+        self.status_label.setWordWrap(True)
         l.addWidget(self.status_label)
 
     def slot_update(self):
         client = Client.singleton()
         status = client.status()
 
-        self.status_label.setText(json.dumps(status))
+        msg = " | ".join(
+            f"{key}: {status[key]}"
+            for key in sorted(status)
+        )
+        self.status_label.setText(msg)

@@ -2,7 +2,7 @@ import json
 import os
 from functools import partial
 from pathlib import Path
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Iterable
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -36,7 +36,30 @@ class FileListModel(QAbstractListModel):
             if role == Qt.DisplayRole or role == Qt.ToolTipRole:
                 return QVariant(self.get_param_string(file))
 
+            if role == Qt.ItemDataRole:
+                return QVariant(file["path"])
+
         return QVariant()
+
+    def mimeData(self, indexes: Iterable[QModelIndex]) -> QMimeData:
+        data = QMimeData()
+        for index in indexes:
+            if index.isValid():
+                file = self.files[index.row()]
+                data.setText(file["path"])
+                data.setData("text/uri-list", f'file://{file["path"]}\r\n'.encode())
+                # data.setImageData(QImage(self.files[index.row()]["path"]))
+                _, ext = os.path.splitext(file["path"])
+                if ext == ".jpg":
+                    ext = ".jpeg"
+                with open(self.files[index.row()]["path"], "rb") as fp:
+                    data.setData(f"image/{ext[1:]}", fp.read())
+            break
+        return data
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlags:
+        flags = super().flags(index)
+        return flags | Qt.ItemIsDragEnabled
 
     def get_file(self, index: QModelIndex) -> dict:
         return self.files[index.row()]
@@ -194,6 +217,9 @@ class ImageListWidget(QWidget):
         self.list_widget = ListView(self)
         lh.addWidget(self.list_widget)
         self.list_widget.setModel(self.filter_model)
+        self.list_widget.setDragEnabled(True)
+        self.list_widget.setDragDropMode(QAbstractItemView.DragDrop)
+
         #self.list_widget.setLayoutMode(QListView.Batched)
         #self.list_widget.setViewMode(QListView.IconMode)
         #self.list_widget.setBatchSize(10)
