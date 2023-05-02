@@ -16,5 +16,7 @@ python src/app/generator
 - `filename slug`: is the beginning of the filename and will be appended with increasing numbers
 - `prompt`, `negative prompt` and `guidance` do the usual thing
 
-You can create multiple tabs for different prompts and request processing of the prompts multiple times
-at once. All jobs run in parallel ;-)
+You can create multiple tabs (`Ctrl+T`) for different prompts 
+and request processing of the prompts multiple times at once. All jobs run in parallel ;-)
+
+It's possible to quickly delete (`D`) or rate images (`0` to `5`) and filter the list for specific ratings.

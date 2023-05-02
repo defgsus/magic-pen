@@ -39,6 +39,9 @@ class FileListModel(QAbstractListModel):
             if role == Qt.ItemDataRole:
                 return QVariant(file["path"])
 
+            if role == Qt.SizeHintRole:
+                return QVariant(QSize(300, 150))
+
         return QVariant()
 
     def mimeData(self, indexes: Iterable[QModelIndex]) -> QMimeData:
@@ -219,11 +222,11 @@ class ImageListWidget(QWidget):
         self.list_widget.setModel(self.filter_model)
         self.list_widget.setDragEnabled(True)
         self.list_widget.setDragDropMode(QAbstractItemView.DragDrop)
-
+        self.list_widget.setWordWrap(True)
         #self.list_widget.setLayoutMode(QListView.Batched)
         #self.list_widget.setViewMode(QListView.IconMode)
         #self.list_widget.setBatchSize(10)
-        self.list_widget.setGridSize(QSize(150, 150))
+        #self.list_widget.setGridSize(QSize(150, 150))
         self.list_widget.signal_index_changed.connect(self._slot_clicked)
 
     def num_files(self) -> int:
