@@ -18,9 +18,10 @@ def meta_filename(path: Union[str, Path]) -> Path:
 
 
 class FileListModel(QAbstractListModel):
-    def __init__(self, files: List[dict], parent=None, *args):
+    def __init__(self, files: List[dict], item_height: int, parent=None, *args):
         QAbstractListModel.__init__(self, parent, *args)
         self.files = files
+        self.item_height = item_height
         self.data_cache = {}
 
     def rowCount(self, parent=None, *args, **kwargs):
@@ -33,7 +34,7 @@ class FileListModel(QAbstractListModel):
             if role == Qt.DecorationRole:
                 # print(index.row())
                 if file["mime_type"].startswith("image/"):
-                    return QPixmap(file["path"]).scaled(150, 150)
+                    return QPixmap(file["path"]).scaled(self.item_height, self.item_height)
 
             if role == Qt.DisplayRole or role == Qt.ToolTipRole:
                 return QVariant(self.get_param_string(file))
@@ -42,7 +43,7 @@ class FileListModel(QAbstractListModel):
                 return QVariant(file["path"])
 
             if role == Qt.SizeHintRole:
-                return QVariant(QSize(300, 150))
+                return QVariant(QSize(300, self.item_height))
 
         return QVariant()
 
@@ -163,14 +164,15 @@ class ImageListWidget(QWidget):
 
     signal_image_clicked = pyqtSignal(dict)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, item_height: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.item_height = item_height
         self._create_widgets()
         self.path = Client.singleton().result_path
         self.set_path(self.path)
 
     def _create_widgets(self):
-        self.data_model = FileListModel([], self)
+        self.data_model = FileListModel(files=[], item_height=self.item_height, parent=self)
         self.filter_model = FilterFileListModel(self)
         self.filter_model.setSourceModel(self.data_model)
 
@@ -234,7 +236,7 @@ class ImageListWidget(QWidget):
         #self.list_widget.setLayoutMode(QListView.Batched)
         #self.list_widget.setViewMode(QListView.IconMode)
         #self.list_widget.setBatchSize(10)
-        #self.list_widget.setGridSize(QSize(150, 150))
+        #self.list_widget.setGridSize(QSize(self.item_height, self.item_height))
         self.list_widget.signal_index_changed.connect(self._slot_clicked)
         self.list_widget.activated.connect(self._slot_activated)
 
@@ -322,7 +324,7 @@ class ImageListWidget(QWidget):
                         "mime_type": mime_type,
                     })
 
-        self.data_model = FileListModel(files_data, self)
+        self.data_model = FileListModel(files=files_data, item_height=self.item_height, parent=self)
         self.filter_model.setSourceModel(self.data_model)
         self.filter_model.invalidateFilter()
         self.count_label.setText(f"{self.num_files()} files")

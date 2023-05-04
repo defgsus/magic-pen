@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
 
     def _add_generator_widget(self, widget: GeneratorWidgetBase) -> int:
         tab_index = self.tab_widget.addTab(widget, "new session")
-        widget.signal_slug_changed.connect(self._on_slug_change)
+        widget.signal_path_changed.connect(self._on_slug_change)
         widget.set_focus()
         self.sessions.append(widget)
         self._on_slug_change(widget, widget.slug_input.text())

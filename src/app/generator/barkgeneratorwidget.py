@@ -13,15 +13,29 @@ from .generatorwidgetbase import GeneratorWidgetBase, sluggify
 
 class BarkGeneratorWidget(GeneratorWidgetBase):
 
+    list_item_height: int = 100
+
     def set_focus(self):
         self.prompt_input.setFocus()
 
     def _create_control_widgets(self):
+        lv = QVBoxLayout()
+
         self.prompt_input = QPlainTextEdit(self)
+        lv.addWidget(self.prompt_input)
         self.prompt_input.setMaximumHeight(180)
         self.prompt_input.textChanged.connect(self.slot_on_prompt_change)
-        self._add_control(self.tr("prompt"), self.prompt_input)
+        self._add_control(self.tr("prompt"), lv)
 
+        lh = QHBoxLayout()
+        lv.addLayout(lh)
+        for text in ("♪", "—", "[laughs]"):
+            butt = QToolButton(self)
+            butt.setText(text)
+            butt.clicked.connect(partial(self.add_to_prompt, text))
+            lh.addWidget(butt)
+        lh.addStretch(2)
+        
         self.voice_select = QComboBox(self)
         self.voice_select.addItem("Unconditional")
         self.voice_select.addItem("Announcer")
@@ -47,6 +61,9 @@ class BarkGeneratorWidget(GeneratorWidgetBase):
             sluggify(self.prompt_input.toPlainText()) == self.slug_input.text()
         )
         self._ignore_slug_change = False
+
+    def add_to_prompt(self, text: str):
+        self.prompt_input.textCursor().insertText(text)
 
     def slot_on_prompt_change(self):
         if self.auto_update_slug_checkbox.isChecked():

@@ -1,5 +1,6 @@
 from functools import partial
 import unicodedata
+from typing import Union
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -12,8 +13,11 @@ from .imagelistwidget import ImageListWidget
 
 class GeneratorWidgetBase(QWidget):
 
+    signal_path_changed = pyqtSignal(QWidget, str)
     signal_slug_changed = pyqtSignal(QWidget, str)
     signal_run_finished = pyqtSignal()
+
+    list_item_height: int = 150
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -36,7 +40,7 @@ class GeneratorWidgetBase(QWidget):
     def set_parameters(self, params: dict):
         raise NotImplementedError
 
-    def _add_control(self, label: str, widget: QWidget):
+    def _add_control(self, label: str, widget: Union[QWidget, QLayout]):
         container = QWidget(self)
         layout = QVBoxLayout(container)
         label = QLabel(label, container)
@@ -44,7 +48,10 @@ class GeneratorWidgetBase(QWidget):
         font.setBold(True)
         label.setFont(font)
         layout.addWidget(label, 0)
-        layout.addWidget(widget, 2)
+        if isinstance(widget, QWidget):
+            layout.addWidget(widget, 2)
+        else:
+            layout.addLayout(widget)
         self.v_layout.addWidget(container)
 
     def _create_widgets(self):
@@ -78,7 +85,7 @@ class GeneratorWidgetBase(QWidget):
         l.addWidget(button)
         button.clicked.connect(self.slot_run)
 
-        self.image_list = ImageListWidget(self)
+        self.image_list = ImageListWidget(self.list_item_height, self)
         l0.addWidget(self.image_list, 2)
 
     def slot_on_slug_change(self):
@@ -92,6 +99,7 @@ class GeneratorWidgetBase(QWidget):
     def slot_on_path_change(self):
         params = self.parameters()
         self.image_list.set_path(Client.singleton().result_path / params["path"])
+        self.signal_path_changed.emit(self, params["path"])
 
     def create_hf_space(self) -> HuggingfaceSpace:
         raise NotImplementedError

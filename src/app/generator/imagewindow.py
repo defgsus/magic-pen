@@ -28,6 +28,6 @@ class ImageWindow(QWidget):
         l.addWidget(self.image_widget)
         self.image_widget.setPixmap(QPixmap(str(self.path)))
 
-        self.image_list = ImageListWidget(self)
+        self.image_list = ImageListWidget(150, self)
         l.addWidget(self.image_list)
         self.image_list.set_path(self.path.parent)
