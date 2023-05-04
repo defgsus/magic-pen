@@ -20,3 +20,5 @@ You can create multiple tabs (`Ctrl+T`) for different prompts
 and request processing of the prompts multiple times at once. All jobs run in parallel ;-)
 
 It's possible to quickly delete (`D`) or rate images (`0` to `5`) and filter the list for specific ratings.
+
+The `prompt` and the rating is stored in separate `json` files along with each image.

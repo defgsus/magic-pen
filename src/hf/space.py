@@ -95,6 +95,9 @@ class HuggingfaceSpace:
             self._result = message
             # print(json.dumps(message, indent=2))
 
+        else:
+            print("UNHANDLED MESSAGE:", message)
+
     def _on_error(self, ws, error):
         self.state = "error"
         # print("error:", error)

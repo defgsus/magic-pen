@@ -8,7 +8,9 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from .client import Client
-from .generatorwidget import GeneratorWidget
+from .generatorwidgetbase import GeneratorWidgetBase
+from .diffusiongeneratorwidget import DiffusionGeneratorWidget
+from .barkgeneratorwidget import BarkGeneratorWidget
 from .statuswidget import StatusWidget
 
 
@@ -20,7 +22,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.tr("The Generator"))
         self.setWindowFlag(Qt.WindowMinMaxButtonsHint, True)
 
-        self.sessions: List[GeneratorWidget] = []
+        self.sessions: List[GeneratorWidgetBase] = []
         self.tab_menus = dict()
         self._create_main_menu()
         self._create_widgets()
@@ -34,7 +36,8 @@ class MainWindow(QMainWindow):
 
         menu.addAction(self.tr("E&xit"), self.slot_exit)
 
-        new_menu.addAction(self.tr("New &Session"), self.slot_new_session, QKeySequence("Ctrl+T"))
+        new_menu.addAction(self.tr("New &Diffusion Session"), self.slot_new_diffusion_session, QKeySequence("Ctrl+T"))
+        new_menu.addAction(self.tr("New &Bark Session"), self.slot_new_bark_session, QKeySequence("Ctrl+B"))
 
     def _create_widgets(self):
         parent = QWidget(self)
@@ -66,6 +69,7 @@ class MainWindow(QMainWindow):
         sessions = []
         for gen in self.sessions:
             params = gen.parameters()
+            params["_class"] = type(gen).__name__
             sessions.append(params)
 
         data = {
@@ -83,19 +87,32 @@ class MainWindow(QMainWindow):
         self.sessions.clear()
 
         for session in data["sessions"]:
-            widget = GeneratorWidget(self)
+            _class = session.pop("_class", None)
+            if not _class or _class == "DiffusionGeneratorWidget":
+                widget = DiffusionGeneratorWidget(self)
+            elif _class == "BarkGeneratorWidget":
+                widget = BarkGeneratorWidget(self)
+            else:
+                print("UNKNOWN GENERATOR CLASS:", _class)
+                continue
+
             self._add_generator_widget(widget)
             widget.set_parameters(session)
 
-    def slot_new_session(self):
-        widget = GeneratorWidget(self)
+    def slot_new_diffusion_session(self):
+        widget = DiffusionGeneratorWidget(self)
         tab_index = self._add_generator_widget(widget)
         self.tab_widget.setCurrentIndex(tab_index)
 
-    def _add_generator_widget(self, widget: GeneratorWidget) -> int:
+    def slot_new_bark_session(self):
+        widget = BarkGeneratorWidget(self)
+        tab_index = self._add_generator_widget(widget)
+        self.tab_widget.setCurrentIndex(tab_index)
+
+    def _add_generator_widget(self, widget: GeneratorWidgetBase) -> int:
         tab_index = self.tab_widget.addTab(widget, "new session")
         widget.signal_slug_changed.connect(self._on_slug_change)
-        widget.prompt_input.setFocus()
+        widget.set_focus()
         self.sessions.append(widget)
         self._on_slug_change(widget, widget.slug_input.text())
         return tab_index

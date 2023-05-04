@@ -7,6 +7,7 @@ from typing import List, Union, Optional, Iterable
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from PyQt5.QtMultimedia import QSound
 
 from .client import Client
 
@@ -31,7 +32,8 @@ class FileListModel(QAbstractListModel):
 
             if role == Qt.DecorationRole:
                 # print(index.row())
-                return QPixmap(file["path"]).scaled(150, 150)
+                if file["mime_type"].startswith("image/"):
+                    return QPixmap(file["path"]).scaled(150, 150)
 
             if role == Qt.DisplayRole or role == Qt.ToolTipRole:
                 return QVariant(self.get_param_string(file))
@@ -51,12 +53,14 @@ class FileListModel(QAbstractListModel):
                 file = self.files[index.row()]
                 data.setText(file["path"])
                 data.setData("text/uri-list", f'file://{file["path"]}\r\n'.encode())
-                # data.setImageData(QImage(self.files[index.row()]["path"]))
-                _, ext = os.path.splitext(file["path"])
-                if ext == ".jpg":
-                    ext = ".jpeg"
-                with open(self.files[index.row()]["path"], "rb") as fp:
-                    data.setData(f"image/{ext[1:]}", fp.read())
+
+                if file["mime_type"].startswith("image/"):
+                    # data.setImageData(QImage(self.files[index.row()]["path"]))
+                    _, ext = os.path.splitext(file["path"])
+                    if ext == ".jpg":
+                        ext = ".jpeg"
+                    with open(self.files[index.row()]["path"], "rb") as fp:
+                        data.setData(f"image/{ext[1:]}", fp.read())
             break
         return data
 
@@ -140,6 +144,10 @@ class FilterFileListModel(QSortFilterProxyModel):
 class ListView(QListView):
 
     signal_index_changed = pyqtSignal(QModelIndex)
+
+    #def __init__(self, *args, **kwargs):
+    #    super().__init__(*args, **kwargs)
+    #    self.activated.connect(self._slot_activated)
 
     def selectionChanged(self, selected: QItemSelection, deselected):
         indexes = selected.indexes()
@@ -228,6 +236,7 @@ class ImageListWidget(QWidget):
         #self.list_widget.setBatchSize(10)
         #self.list_widget.setGridSize(QSize(150, 150))
         self.list_widget.signal_index_changed.connect(self._slot_clicked)
+        self.list_widget.activated.connect(self._slot_activated)
 
     def num_files(self) -> int:
         return self.filter_model.rowCount()
@@ -300,10 +309,17 @@ class ImageListWidget(QWidget):
         files_data = []
         for entry in all_entries:
             if not entry.name.startswith('.') and entry.is_file():
-                if not entry.name.endswith(".json"):
+                mime_type = None
+                if entry.name.endswith(".jpg"):
+                    mime_type = "image/jpeg"
+                elif entry.name.endswith(".wav"):
+                    mime_type = "audio/wav"
+
+                if mime_type:
                     files_data.append({
                         "path": entry.path,
                         "name": entry.name,
+                        "mime_type": mime_type,
                     })
 
         self.data_model = FileListModel(files_data, self)
@@ -344,3 +360,10 @@ class ImageListWidget(QWidget):
 
         else:
             self.image_label.clear()
+
+    def _slot_activated(self, proxy_index: QModelIndex):
+        if proxy_index.isValid():
+            source_index = self.filter_model.mapToSource(proxy_index)
+            file = self.data_model.get_file(source_index)
+            if file["mime_type"].startswith("audio/"):
+                QSound.play(file["path"])
