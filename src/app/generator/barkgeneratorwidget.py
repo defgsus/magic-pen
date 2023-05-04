@@ -35,7 +35,7 @@ class BarkGeneratorWidget(GeneratorWidgetBase):
             butt.clicked.connect(partial(self.add_to_prompt, text))
             lh.addWidget(butt)
         lh.addStretch(2)
-        
+
         self.voice_select = QComboBox(self)
         self.voice_select.addItem("Unconditional")
         self.voice_select.addItem("Announcer")

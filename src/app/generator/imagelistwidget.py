@@ -167,6 +167,7 @@ class ImageListWidget(QWidget):
     def __init__(self, item_height: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.item_height = item_height
+        self.sounds: List[QSound] = []
         self._create_widgets()
         self.path = Client.singleton().result_path
         self.set_path(self.path)
@@ -351,7 +352,10 @@ class ImageListWidget(QWidget):
         if proxy_index.isValid():
             source_index = self.filter_model.mapToSource(proxy_index)
             file = self.data_model.get_file(source_index)
-            self.image_label.setPixmap(QPixmap(file["path"]))
+            if file["mime_type"].startswith("image"):
+                self.image_label.setPixmap(QPixmap(file["path"]))
+            else:
+                self.image_label.clear()
 
             meta = self.data_model.get_file_meta(file["path"])
             rating = meta.get("rating") or 0
@@ -368,4 +372,18 @@ class ImageListWidget(QWidget):
             source_index = self.filter_model.mapToSource(proxy_index)
             file = self.data_model.get_file(source_index)
             if file["mime_type"].startswith("audio/"):
-                QSound.play(file["path"])
+                self.stop_sounds()
+                self.play_sound(file["path"])
+
+    def play_sound(self, path: str):
+        sound = QSound(path)
+        self.sounds.append(sound)
+        sound.play()
+
+        for sound in list(self.sounds):
+            if sound.isFinished():
+                self.sounds.remove(sound)
+
+    def stop_sounds(self):
+        for sound in list(self.sounds):
+            sound.stop()
