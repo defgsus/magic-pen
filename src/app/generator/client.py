@@ -5,6 +5,7 @@ from pathlib import Path
 import threading
 from typing import Union, Set, Dict, Optional, Callable
 
+from src.config import RESULTS_PATH
 from src.hf import HuggingfaceSpace, SpacePool
 
 
@@ -21,7 +22,7 @@ class Client:
     def __init__(self, pool_size: int = 20):
         self.pool = SpacePool(size=pool_size)
         self.pool.start()
-        self.result_path = Path(__file__).resolve().parent.parent.parent.parent / "results"
+        self.result_path = RESULTS_PATH
         self.num_digits = 4
         self._lock = threading.Lock()
         self._spaces: Set[HuggingfaceSpace] = set()

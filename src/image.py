@@ -4,6 +4,7 @@ from typing import Union, List, Type
 
 import numpy as np
 import torch
+import torchvision.transforms.functional as VT
 import PIL.Image
 
 
@@ -102,3 +103,35 @@ def image_to_torch(image: ImageType) -> torch.Tensor:
         array = array.copy()
     return torch.Tensor(array)
 
+
+def resize_crop(
+        image: Union[torch.Tensor, PIL.Image.Image],
+        resolution: List[int],
+) -> Union[torch.Tensor, PIL.Image.Image]:
+    if isinstance(image, PIL.Image.Image):
+        width, height = image.width, image.height
+    else:
+        width, height = image.shape[-1], image.shape[-2]
+
+    if width != resolution[0] or height != resolution[1]:
+
+        if width < height:
+            factor = max(resolution) / width
+        else:
+            factor = max(resolution) / height
+
+        image = VT.resize(
+            image,
+            [int(height * factor), int(width * factor)],
+            interpolation=VT.InterpolationMode.BICUBIC,
+        )
+
+        if isinstance(image, PIL.Image.Image):
+            width, height = image.width, image.height
+        else:
+            width, height = image.shape[-1], image.shape[-2]
+
+        if width != resolution[0] or height != resolution[1]:
+            image = VT.center_crop(image, resolution)
+
+    return image

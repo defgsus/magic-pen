@@ -1,3 +1,5 @@
+from typing import List, Iterable
+
 import sqlalchemy as sq
 from sqlalchemy.orm import relationship, backref, sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
@@ -10,15 +12,59 @@ ImageDBBase = declarative_base()
 class ContentHash(ImageDBBase):
     __tablename__ = 'content_hash'
 
-    id = sq.Column(sq.Integer, sq.Sequence("id_seq"), primary_key=True, unique=True)
-    hash = sq.Column(sq.String(length=128))
+    id = sq.Column(sq.Integer, sq.Sequence("id_seq"), primary_key=True)
+    hash = sq.Column(sq.String(length=128), index=True)
+
     images = relationship("ImageEntry")
+    embeddings = relationship("Embedding")
+
+
+class Embedding(ImageDBBase):
+    __tablename__ = 'embedding'
+
+    id = sq.Column(sq.Integer, sq.Sequence("id_seq"), primary_key=True)
+    model = sq.Column(sq.String(16), index=True)
+    #data = sq.Column(sq.ARRAY(sq.Float))
+    data = sq.Column(sq.String)
+
+    content_hash_id = sq.Column(sq.Integer, sq.ForeignKey("content_hash.id", ondelete="RESTRICT"), index=True)
+    content_hash = relationship("ContentHash", back_populates="embeddings")
+
+    sq.UniqueConstraint(model, content_hash_id)
+
+    def to_list(self) -> List[float]:
+        return [float(i) for i in self.data.split(",")]
+
+    @classmethod
+    def to_internal_data(cls, sequence: Iterable[float]) -> str:
+        return ",".join(str(f) for f in sequence)
+
+
+image_tags = sq.Table(
+    "image_tags",
+    ImageDBBase.metadata,
+    sq.Column("image_id", sq.ForeignKey("image.id"), primary_key=True),
+    sq.Column("tag_id", sq.ForeignKey("tag.id"), primary_key=True),
+)
 
 
 class ImageEntry(ImageDBBase):
     __tablename__ = 'image'
 
     id = sq.Column(sq.Integer, sq.Sequence("id_seq"), primary_key=True)
-    path = sq.Column(sq.String)
+    path = sq.Column(sq.String, index=True)
+    name = sq.Column(sq.String, index=True)
 
-    content_hash_id = sq.Column(sq.Integer, sq.ForeignKey("content_hash.id", ondelete="RESTRICT"))
+    content_hash_id = sq.Column(sq.Integer, sq.ForeignKey("content_hash.id", ondelete="RESTRICT"), index=True)
+    content_hash = relationship("ContentHash", back_populates="images")
+
+    tags = relationship("ImageTag", secondary=image_tags, back_populates="images")
+
+
+class ImageTag(ImageDBBase):
+    __tablename__ = 'tag'
+
+    id = sq.Column(sq.Integer, sq.Sequence("id_seq"), primary_key=True)
+    name = sq.Column(sq.String(32), index=True, nullable=False, unique=True)
+
+    images = relationship("ImageEntry", secondary=image_tags, back_populates="tags")
