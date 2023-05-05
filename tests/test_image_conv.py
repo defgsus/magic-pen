@@ -1,18 +1,6 @@
-import unittest
-from pathlib import Path
+from tests.base import *
 
-import PIL.Image
-
-from src.image import *
-
-
-DATA_PATH = Path(__file__).resolve().parent / "data"
-
-
-class TestImageConv(unittest.TestCase):
-
-    def load_pil(self, fn: Union[str, Path]) -> PIL.Image.Image:
-        return PIL.Image.open(DATA_PATH / fn)
+class TestImageConv(TestBase):
 
     def test_100_all_channel_types(self):
         for filename, expected_mode, expected_channels, expected_width, expected_height in (

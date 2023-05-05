@@ -383,6 +383,7 @@ class ImageListWidget(QWidget):
         for sound in list(self.sounds):
             if sound.isFinished():
                 self.sounds.remove(sound)
+                sound.deleteLater()
 
     def stop_sounds(self):
         for sound in list(self.sounds):

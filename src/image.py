@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from typing import Union, List, Type
 
 import numpy as np
@@ -6,6 +8,15 @@ import PIL.Image
 
 
 ImageType = Union[PIL.Image.Image, np.ndarray, torch.Tensor]
+
+
+def is_image_filename(filename: Union[str, Path]):
+    if isinstance(filename, Path):
+        ext = filename.suffix
+    else:
+        ext = os.path.splitext(filename)
+
+    return ext.lower() in PIL.Image.registered_extensions()
 
 
 def image_to_pil(image: ImageType) -> PIL.Image.Image:
