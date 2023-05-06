@@ -10,7 +10,7 @@ CLIP_MODELS: List[str] = clip.available_models()
 
 DEFAULT_MODEL = "ViT-B/32"
 
-MODEL_TO_DIM = {
+MODEL_DIMENSIONS = {
     "ViT-B/32": 512,
 }
 

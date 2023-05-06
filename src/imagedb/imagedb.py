@@ -340,3 +340,10 @@ class ImageDB:
                     _update_all(lambda n: log.update(n))
             else:
                 _update_all(None)
+
+    def get_sim_index(
+            self,
+            model: Optional[str] = None,
+    ):
+        from .simindex import SimIndex
+        return SimIndex(db=self, model=model)

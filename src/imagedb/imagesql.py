@@ -69,8 +69,11 @@ class ImageEntry(ImageDBBase):
     def __repr__(self):
         return f"<{self.name}>"
 
+    def filename(self) -> Path:
+        return Path(self.path) / self.name
+
     def load_pil(self) -> PIL.Image.Image:
-        return PIL.Image.open(Path(self.path) / self.name)
+        return PIL.Image.open(self.filename())
 
     def _ipython_display_(self):
         from IPython.display import display

@@ -6,7 +6,7 @@ import numpy as np
 import faiss
 from tqdm import tqdm
 
-from src.clip import DEFAULT_MODEL, MODEL_TO_DIM, get_text_features, get_image_features
+from src.clip import DEFAULT_MODEL, MODEL_DIMENSIONS, get_text_features, get_image_features
 from .imagesql import ImageEntry, Embedding
 from .imagedb import ImageDB
 
@@ -16,13 +16,13 @@ class SimIndex:
     def __init__(
             self,
             db: ImageDB,
-            model: str = DEFAULT_MODEL,
+            model: Optional[str] = None,
             verbose: bool = False
     ):
         self.db = db
-        self.model = model
+        self.model = model or DEFAULT_MODEL
         self.verbose = verbose
-        self.dimensions = MODEL_TO_DIM[self.model]
+        self.dimensions = MODEL_DIMENSIONS[self.model]
         self._index_to_embedding_pk = []
         self._index_to_image_pk = []
         self._index = faiss.IndexFlatIP(self.dimensions)
