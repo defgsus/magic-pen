@@ -57,7 +57,7 @@ class ImageDB:
 
         with self.sql_session(sql_session) as sql_session:
 
-            image = self.get_image(path, sql_session=sql_session) if no_duplicates else None
+            image = self.get_image(path=path, sql_session=sql_session) if no_duplicates else None
 
             content_hash = self.calc_content_hash(path)
             content_hash_entry = self.get_content_hash_entry(content_hash, create=True, sql_session=sql_session)
@@ -121,6 +121,7 @@ class ImageDB:
 
     def get_image(
             self,
+            id: Optional[int] = None,
             path: Optional[Union[str, Path]] = None,
             content_hash: Optional[Union[str, int]] = None,
             sql_session: Optional[Session] = None,
@@ -128,6 +129,9 @@ class ImageDB:
         with self.sql_session(sql_session) as sql_session:
 
             query = sql_session.query(ImageEntry)
+
+            if id is not None:
+                query = query.filter(ImageEntry.id == id)
 
             if path is not None:
                 path = self.normalize_path(path)

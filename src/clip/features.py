@@ -1,23 +1,30 @@
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Iterable
 
 import torch
 import numpy as np
 import clip
 
-from .clip_singleton import ClipSingleton, DEFAULT_MODEL
 from src.image import ImageType, resize_crop
+from .clip_singleton import ClipSingleton, DEFAULT_MODEL
+from .device import get_torch_device
 
 
 def get_text_features(
-        text: Union[str, List[str]],
+        text: Union[str, Iterable[str]],
         model: str = DEFAULT_MODEL,
         device: str = "auto",
 ) -> np.ndarray:
+    device = get_torch_device(device)
+
     model, _ = ClipSingleton.get(model, device)
 
-    is_array = not isinstance(text, str)
-    if not is_array:
+    if isinstance(text, str):
+        is_array = False
         text = [text]
+    else:
+        is_array = True
+        if not isinstance(text, list):
+            text = list(text)
 
     tokens = clip.tokenize(text).to(device)
     with torch.no_grad():
@@ -32,14 +39,19 @@ def get_text_features(
 
 
 def get_image_features(
-        image: Union[ImageType, List[ImageType]],
+        image: Union[ImageType, Iterable[ImageType]],
         model: str = DEFAULT_MODEL,
         device: str = "auto",
 ) -> np.ndarray:
+    device = get_torch_device(device)
 
-    is_array = isinstance(image, (list, tuple))
-    if not is_array:
+    if isinstance(image, str):
+        is_array = False
         image = [image]
+    else:
+        is_array = True
+        if not isinstance(image, list):
+            image = list(image)
 
     model, preprocess = ClipSingleton.get(model, device)
 

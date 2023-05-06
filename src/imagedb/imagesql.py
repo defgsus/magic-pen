@@ -1,5 +1,7 @@
+from pathlib import Path
 from typing import List, Iterable
 
+import PIL.Image
 import sqlalchemy as sq
 from sqlalchemy.orm import relationship, backref, sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
@@ -35,6 +37,10 @@ class Embedding(ImageDBBase):
     def to_list(self) -> List[float]:
         return [float(i) for i in self.data.split(",")]
 
+    def to_numpy(self, dtype="float32"):
+        import numpy as np
+        return np.array(self.to_list(), dtype=dtype)
+
     @classmethod
     def to_internal_data(cls, sequence: Iterable[float]) -> str:
         return ",".join(str(f) for f in sequence)
@@ -59,6 +65,16 @@ class ImageEntry(ImageDBBase):
     content_hash = relationship("ContentHash", back_populates="images")
 
     tags = relationship("ImageTag", secondary=image_tags, back_populates="images")
+
+    def __repr__(self):
+        return f"<{self.name}>"
+
+    def load_pil(self) -> PIL.Image.Image:
+        return PIL.Image.open(Path(self.path) / self.name)
+
+    def _ipython_display_(self):
+        from IPython.display import display
+        display(self.load_pil())
 
 
 class ImageTag(ImageDBBase):

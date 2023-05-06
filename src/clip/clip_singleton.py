@@ -3,11 +3,16 @@ from typing import List, Tuple
 import torch
 import clip
 
+from .device import get_torch_device
+
 
 CLIP_MODELS: List[str] = clip.available_models()
 
 DEFAULT_MODEL = "ViT-B/32"
 
+MODEL_TO_DIM = {
+    "ViT-B/32": 512,
+}
 
 class ClipSingleton:
 
@@ -22,11 +27,7 @@ class ClipSingleton:
         :param device: str, a torch device or 'auto'
         :return: tuple of (Module, Module)
         """
-        if device == "auto":
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-        else:
-            if device.startswith("cuda") and not torch.cuda.is_available():
-                raise RuntimeError("Cuda device requested but not available")
+        device = get_torch_device(device)
 
         key = f"{model}/{device}"
 

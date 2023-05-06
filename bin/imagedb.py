@@ -109,6 +109,7 @@ def command_status(
         verbose: bool,
 ):
     with db.sql_session() as session:
+        num_tags = session.query(ImageTag).count()
         num_images = session.query(ImageEntry).count()
         num_hashes = session.query(ContentHash).count()
         num_embeddings = (
@@ -117,10 +118,11 @@ def command_status(
                 .group_by(Embedding.model).all()
         )
         embedding_str = "\n".join(
-            f"  {e[0].model:13} {e[1]:,}"
+            f"  - {e[0].model:11} {e[1]:,}"
             for e in sorted(num_embeddings, key=lambda e: e[0].model)
         )
         print(f"""
+tags:           {num_tags:,}
 images:         {num_images:,}
 content hashes: {num_hashes:,}
 embeddings:     
