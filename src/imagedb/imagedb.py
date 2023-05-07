@@ -12,7 +12,7 @@ import PIL.Image
 
 from src import log
 from src.config import DATABASE_PATH
-from src.image import is_image_filename
+from src.image import is_image_filename, resize_crop
 from .imagesql import ImageDBBase, ImageEntry, Embedding, ImageTag
 from .simindex import SimIndex
 
@@ -261,9 +261,16 @@ class ImageDB:
                         break
 
                     pil_images = []
+                    image_ids = []
                     for image_entry in image_batch:
-                        image = PIL.Image.open(image_entry.filename())
-                        pil_images.append(image)
+                        try:
+                            image = PIL.Image.open(image_entry.filename())
+                            image = resize_crop(image, [224, 224])
+                            pil_images.append(image)
+                            image_ids.append(image_entry.id)
+                        except Exception as e:
+                            log.warn(f"failed loading image: {image_entry.filename()}: {type(e).__name__}: {e}")
+                            sql_session.delete(image_entry)
 
                     features = get_image_features(pil_images, model=model, device=device)
 
@@ -271,9 +278,9 @@ class ImageDB:
                         Embedding(
                             model=model,
                             data=Embedding.to_internal_data(feature),
-                            image_id=image_entry.id,
+                            image_id=image_id,
                         )
-                        for image_entry, feature in zip(image_batch, features)
+                        for image_id, feature in zip(image_ids, features)
                     ]
                     sql_session.add_all(embedding_entries)
                     sql_session.commit()
@@ -282,8 +289,8 @@ class ImageDB:
                         callback(len(image_batch))
 
             if self.verbose:
-                with tqdm(f"update embeddings", total=total) as log:
-                    _update_all(lambda n: log.update(n))
+                with tqdm(f"update embeddings", total=total) as progress:
+                    _update_all(lambda n: progress.update(n))
             else:
                 _update_all(None)
 

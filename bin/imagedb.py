@@ -27,6 +27,10 @@ def parse_args() -> dict:
         "-r", "--recursive", action="store_true",
         help="Recursively search in all directories"
     )
+    parser_add.add_argument(
+        "-t", "--tag", type=str, nargs="*",
+        help="A list of tags to add to the found images"
+    )
 
     parser_update = subparsers.add_parser("update", help="Calculate any missing image embeddings")
     parser_update.set_defaults(command="update")
@@ -99,6 +103,7 @@ def main(
 def command_add(
         db: ImageDB,
         path: List[str],
+        tag: List[str],
         recursive: bool,
         verbose: bool,
 ):
@@ -107,18 +112,18 @@ def command_add(
         path = ImageDB.normalize_path(path)
 
         if path.is_dir():
-            db.add_directory(path, recursive=recursive)
+            db.add_directory(path, recursive=recursive, tags=tag)
             continue
 
         else:
             if path.is_file():
-                db.add_image(path)
+                db.add_image(path, tags=tag)
                 continue
 
             else:
                 name = path.name
                 if "*" in name or "?" in name:
-                    db.add_directory(path.parent, glob_pattern=path.name, recursive=recursive)
+                    db.add_directory(path.parent, glob_pattern=path.name, recursive=recursive, tags=tag)
                     continue
 
         # fallback

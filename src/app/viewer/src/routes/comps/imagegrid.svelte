@@ -23,6 +23,13 @@
         background-color: rgba(0, 0, 0, .6);
         display: flex;
         justify-content: center;
+        align-content: center;
+    }
+    .overlay .image {
+        position: relative;
+    }
+    .overlay .image img {
+        max-height: 750px;
     }
 
 </style>
