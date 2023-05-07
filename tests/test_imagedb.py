@@ -26,7 +26,7 @@ class TestImageDB(TestBase):
                 self.assertTrue(entry.id)
 
                 # -- add an embedding --
-                embedding = db.add_embedding(entry.content_hash, "fake", [1, 2, 3, 4], sql_session=session)
+                embedding = db.add_embedding(entry, "fake", [1, 2, 3, 4], sql_session=session)
                 self.assertTrue(embedding)
 
             # -- new db instance, check contents --
@@ -34,7 +34,7 @@ class TestImageDB(TestBase):
 
             with db.sql_session() as session:
                 entry = db.get_image(path=image_path, sql_session=session)
-                embedding = db.get_embedding(entry, "fake", sql_session=session)
+                embedding = db.get_embedding(entry, "fake")
                 self.assertTrue(embedding)
                 self.assertEqual([1, 2, 3, 4], embedding.to_list())
 

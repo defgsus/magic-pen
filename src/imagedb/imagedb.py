@@ -13,7 +13,7 @@ import PIL.Image
 from src import log
 from src.config import DATABASE_PATH
 from src.image import is_image_filename
-from .imagesql import ImageDBBase, ImageEntry, ContentHash, Embedding, ImageTag
+from .imagesql import ImageDBBase, ImageEntry, Embedding, ImageTag
 from .simindex import SimIndex
 
 
@@ -61,43 +61,41 @@ class ImageDB:
 
             image = self.get_image(path=path, sql_session=sql_session) if no_duplicates else None
 
-            content_hash = self.calc_content_hash(path)
-            content_hash_entry = self.get_content_hash_entry(content_hash, create=True, sql_session=sql_session)
-
             if embeddings is not None:
                 for model_name, sequence in embeddings.items():
                     self.add_embedding(
-                        content_hash=content_hash_entry,
+                        image_or_id=image,
                         model=model_name,
                         data=sequence,
                         sql_session=sql_session,
                         commit=False,
                     )
 
+            do_commit = False
+
             if image is None:
                 image = ImageEntry(
                     path=str(path.parent),
                     name=path.name,
-                    content_hash_id=content_hash_entry.id,
                 )
                 sql_session.add(image)
-                sql_session.commit()
+                do_commit = True
 
             if tags is not None:
                 tags = self.get_tags(tags, sql_session=sql_session)
                 for tag in tags:
                     image.tags.append(tag)
 
-                sql_session.commit()
+                do_commit = True
 
-                #if self.verbose:
-                #    self._log(f"added image {image.id} {path}")
+            if do_commit:
+                sql_session.commit()
 
         return image
 
     def add_embedding(
             self,
-            content_hash: Union[int, ContentHash],
+            image_or_id: Union[int, ImageEntry],
             model: str,
             data: Iterable[float],
             sql_session: Optional[Session] = None,
@@ -105,15 +103,17 @@ class ImageDB:
     ) -> Embedding:
         with self.sql_session(sql_session) as sql_session:
 
-            if isinstance(content_hash, int):
-                content_hash = sql_session.query(ContentHash).filter(ContentHash.id == content_hash).first()
-                if not content_hash:
-                    raise ValueError(f"ContentHash.id == {content_hash} does not exist")
+            if isinstance(image_or_id, int):
+                image = sql_session.query(ImageEntry).filter(ImageEntry.id == image_or_id).first()
+                if not image:
+                    raise ValueError(f"ContentHash.id == {image_or_id} does not exist")
+            else:
+                image = image_or_id
 
             embedding = Embedding(
                 model=model,
                 data=Embedding.to_internal_data(data),
-                content_hash_id=content_hash.id,
+                image_id=image.id,
             )
             sql_session.add(embedding)
             if commit:
@@ -125,7 +125,6 @@ class ImageDB:
             self,
             id: Optional[int] = None,
             path: Optional[Union[str, Path]] = None,
-            content_hash: Optional[Union[str, int]] = None,
             sql_session: Optional[Session] = None,
     ) -> Optional[ImageEntry]:
         with self.sql_session(sql_session) as sql_session:
@@ -139,61 +138,7 @@ class ImageDB:
                 path = self.normalize_path(path)
                 query = query.filter(ImageEntry.path == str(path.parent), ImageEntry.name == path.name)
 
-            if content_hash is not None:
-                if isinstance(content_hash, int):
-                    hash_id = content_hash
-                else:
-                    hash_entry = self.get_content_hash_entry(content_hash)
-                    if not hash_entry:
-                        return
-                    hash_id = hash_entry.id
-                query = query.filter(ImageEntry.content_hash_id == hash_id)
-
             return query.first()
-
-    def get_embedding(
-            self,
-            content: Union[int, ContentHash, ImageEntry],
-            model: str,
-            sql_session: Optional[Session] = None,
-    ) -> Optional[Embedding]:
-        with self.sql_session(sql_session) as sql_session:
-
-            if isinstance(content, int):
-                content_hash_id = content
-
-            elif isinstance(content, ContentHash):
-                content_hash_id = content.id
-
-            elif isinstance(content, ImageEntry):
-                content_hash_id = content.content_hash_id
-
-            else:
-                raise TypeError(f"Expected ContentHash/id or ImageEntry, got {type(content).__name__}")
-
-            return sql_session.query(Embedding).filter(
-                Embedding.content_hash_id == content_hash_id,
-                Embedding.model == model,
-            ).first()
-
-    def get_content_hash_entry(
-            self,
-            content_hash: str = None,
-            create: bool = False,
-            sql_session: Optional[Session] = None,
-    ) -> Optional[ContentHash]:
-        with self.sql_session(sql_session) as sql_session:
-
-            query = sql_session.query(ContentHash)
-            query = query.filter(ContentHash.hash == content_hash)
-            entry = query.first()
-
-            if entry is None and create:
-                entry = ContentHash(hash=content_hash)
-                sql_session.add(entry)
-                sql_session.commit()
-
-            return entry
 
     def add_directory(
             self,
@@ -296,10 +241,10 @@ class ImageDB:
         model = model or DEFAULT_CLIP_MODEL
 
         with self.sql_session(sql_session) as sql_session:
-            hashes = sql_session.query(ContentHash).filter(
-                ~ContentHash.embeddings.any(model=model)
+            images = sql_session.query(ImageEntry).filter(
+                ~ImageEntry.embeddings.any(model=model)
             )
-            total = hashes.count()
+            total = images.count()
             if not total:
                 if self.verbose:
                     self._log(f"no missing embeddings for model '{model}'")
@@ -311,38 +256,53 @@ class ImageDB:
 
             def _update_all(callback: Optional[Callable]):
                 while True:
-                    hash_entries = hashes[:batch_size]
-                    if not hash_entries:
+                    image_batch = images[:batch_size]
+                    if not image_batch:
                         break
 
-                    images = []
-                    for hash_entry in hash_entries:
-                        image_entry = hash_entry.images[0]
+                    pil_images = []
+                    for image_entry in image_batch:
+                        image = PIL.Image.open(image_entry.filename())
+                        pil_images.append(image)
 
-                        image = PIL.Image.open(Path(image_entry.path) / Path(image_entry.name))
-                        images.append(image)
-
-                    features = get_image_features(images, model=model, device=device)
+                    features = get_image_features(pil_images, model=model, device=device)
 
                     embedding_entries = [
                         Embedding(
                             model=model,
                             data=Embedding.to_internal_data(feature),
-                            content_hash_id=hash_entry.id,
+                            image_id=image_entry.id,
                         )
-                        for hash_entry, feature in zip(hash_entries, features)
+                        for image_entry, feature in zip(image_batch, features)
                     ]
                     sql_session.add_all(embedding_entries)
                     sql_session.commit()
 
                     if callback:
-                        callback(len(hash_entries))
+                        callback(len(image_batch))
 
             if self.verbose:
                 with tqdm(f"update embeddings", total=total) as log:
                     _update_all(lambda n: log.update(n))
             else:
                 _update_all(None)
+
+    def get_embedding(
+            self,
+            image_or_id: Union[int, ImageEntry],
+            model: str,
+            sql_session: Optional[Session] = None,
+    ) -> Optional[Embedding]:
+        if isinstance(image_or_id, int):
+            image_id = image_or_id
+        else:
+            image_id = image_or_id.id
+
+        with self.sql_session(sql_session) as sql_session:
+            return sql_session.query(Embedding).filter(
+                Embedding.image_id == image_id,
+                Embedding.model == model,
+            ).first()
 
     def sim_index(
             self,
@@ -357,7 +317,6 @@ class ImageDB:
         with self.sql_session(sql_session) as session:
             num_tags = session.query(ImageTag).count()
             num_images = session.query(ImageEntry).count()
-            num_hashes = session.query(ContentHash).count()
             num_embeddings = (
                 session
                     .query(Embedding, sq.func.count(Embedding.model))
@@ -366,7 +325,6 @@ class ImageDB:
             return {
                 "num_tags": num_tags,
                 "num_images": num_images,
-                "num_hashes": num_hashes,
                 "embeddings": [
                     {"model": e[0].model, "count": e[1]}
                     for e in sorted(num_embeddings, key=lambda e: e[0].model)

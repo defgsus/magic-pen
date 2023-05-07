@@ -165,7 +165,6 @@ def command_status(
     print(f"""
 tags:           {status["num_tags"]:,}
 images:         {status["num_images"]:,}
-content hashes: {status["num_hashes"]:,}
 embeddings:     
 {embedding_str}
     """.strip())

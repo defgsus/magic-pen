@@ -40,34 +40,26 @@ def get_text_features(
 
 
 def get_image_features(
-        image: Union[ImageType, Iterable[ImageType]],
+        images: Iterable[ImageType],
         model: str = DEFAULT_CLIP_MODEL,
         device: str = "auto",
 ) -> np.ndarray:
     device = get_torch_device(device)
 
-    if isinstance(image, str):
-        is_array = False
-        image = [image]
-    else:
-        is_array = True
-        if not isinstance(image, list):
-            image = list(image)
+    if not isinstance(images, (list, tuple)):
+        images = list(images)
 
     model, preprocess = ClipSingleton.get(model, device)
 
     with torch.no_grad():
         resized_images = [
-            preprocess(resize_crop(i, [244, 244]))
-            for i in image
+            preprocess(resize_crop(i, [224, 224]))
+            for i in images
         ]
         torch_images = torch.stack(resized_images).to(model.device)
         features = model.encode_image(torch_images).cpu().numpy()
 
     # features /= np.linalg.norm(features, axis=-1, keepdims=True)
 
-    if is_array:
-        return features
-    else:
-        return features[0]
+    return features
 

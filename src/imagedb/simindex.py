@@ -49,7 +49,7 @@ class SimIndex:
                 for e in embedding_entries:
                     embeddings.append(e.to_numpy().reshape(1, -1))
                     self._index_to_embedding_pk.append(e.id)
-                    self._index_to_image_pk.append(e.content_hash.images[0].id)
+                    self._index_to_image_pk.append(e.image_id)
 
                 embeddings = np.concatenate(embeddings, axis=0)
                 self._index.add(embeddings)

@@ -1,6 +1,6 @@
 import os.path
 from pathlib import Path
-from typing import List, Iterable
+from typing import List, Iterable, Optional
 
 import PIL.Image
 import sqlalchemy as sq
@@ -10,41 +10,6 @@ from sqlalchemy.exc import IntegrityError
 
 
 ImageDBBase = declarative_base()
-
-
-class ContentHash(ImageDBBase):
-    __tablename__ = 'content_hash'
-
-    id = sq.Column(sq.Integer, sq.Sequence("id_seq"), primary_key=True)
-    hash = sq.Column(sq.String(length=128), index=True)
-
-    images = relationship("ImageEntry")
-    embeddings = relationship("Embedding")
-
-
-class Embedding(ImageDBBase):
-    __tablename__ = 'embedding'
-
-    id = sq.Column(sq.Integer, sq.Sequence("id_seq"), primary_key=True)
-    model = sq.Column(sq.String(16), index=True)
-    #data = sq.Column(sq.ARRAY(sq.Float))
-    data = sq.Column(sq.String)
-
-    content_hash_id = sq.Column(sq.Integer, sq.ForeignKey("content_hash.id", ondelete="RESTRICT"), index=True)
-    content_hash = relationship("ContentHash", back_populates="embeddings")
-
-    sq.UniqueConstraint(model, content_hash_id)
-
-    def to_list(self) -> List[float]:
-        return [float(i) for i in self.data.split(",")]
-
-    def to_numpy(self, dtype="float32"):
-        import numpy as np
-        return np.array(self.to_list(), dtype=dtype)
-
-    @classmethod
-    def to_internal_data(cls, sequence: Iterable[float]) -> str:
-        return ",".join(str(f) for f in sequence)
 
 
 image_tags = sq.Table(
@@ -62,10 +27,8 @@ class ImageEntry(ImageDBBase):
     path = sq.Column(sq.String, index=True)
     name = sq.Column(sq.String, index=True)
 
-    content_hash_id = sq.Column(sq.Integer, sq.ForeignKey("content_hash.id", ondelete="RESTRICT"), index=True)
-    content_hash = relationship("ContentHash", back_populates="images")
-
     tags = relationship("ImageTag", secondary=image_tags, back_populates="images")
+    embeddings = relationship("Embedding", back_populates="images")
 
     def __repr__(self):
         return f"<{self.name}>"
@@ -95,3 +58,28 @@ class ImageTag(ImageDBBase):
     name = sq.Column(sq.String(32), index=True, nullable=False, unique=True)
 
     images = relationship("ImageEntry", secondary=image_tags, back_populates="tags")
+
+
+class Embedding(ImageDBBase):
+    __tablename__ = 'embedding'
+
+    id = sq.Column(sq.Integer, sq.Sequence("id_seq"), primary_key=True)
+    model = sq.Column(sq.String(16), index=True)
+    #data = sq.Column(sq.ARRAY(sq.Float))
+    data = sq.Column(sq.String)
+
+    image_id = sq.Column(sq.Integer, sq.ForeignKey("image.id", ondelete="RESTRICT"), index=True)
+    images = relationship("ImageEntry", back_populates="embeddings")
+
+    sq.UniqueConstraint(model, image_id)
+
+    def to_list(self) -> List[float]:
+        return [float(i) for i in self.data.split(",")]
+
+    def to_numpy(self, dtype="float32"):
+        import numpy as np
+        return np.array(self.to_list(), dtype=dtype)
+
+    @classmethod
+    def to_internal_data(cls, sequence: Iterable[float]) -> str:
+        return ",".join(str(f) for f in sequence)
