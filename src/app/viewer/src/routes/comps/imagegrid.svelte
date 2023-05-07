@@ -28,41 +28,78 @@
 </style>
 
 <script>
-    export let images;
+    export let images = [];
 
-    let selected_image_id = null;
+    let selected_image_index = undefined;
+
+    function select_image(index) {
+        selected_image_index = parseInt(index);
+        window.removeEventListener("keydown", handle_image_key);
+        window.addEventListener("keydown", handle_image_key);
+    }
+
+    function close_image() {
+        window.removeEventListener("keydown", handle_image_key);
+        selected_image_index = null;
+    }
+
     function handle_image_click(event) {
-        selected_image_id = event.target.getAttribute("data-id");
+        select_image(event.target.getAttribute("data-index"));
     }
 
     function handle_image_key(event) {
-        console.log(event.key);
-        event.stopPropagation();
-        selected_image_id = null;
+        //console.log(event.key);
+        let handled = true;
+        switch (event.key) {
+            case "Escape":
+            case "Enter":
+            case "Return":
+                close_image();
+                break;
+            case "ArrowUp":
+            case "ArrowLeft":
+                if (images?.length)
+                    selected_image_index = (selected_image_index - 1 + images.length) % images.length;
+                break;
+            case "ArrowDown":
+            case "ArrowRight": {
+                if (images?.length)
+                    selected_image_index = (selected_image_index + 1) % images.length;
+                break; }
+            default:
+                handled = false;
+        }
+        if (handled)
+            event.stopPropagation();
+
     }
+
+    let selected_image;
+    $: selected_image = images?.length ? images[selected_image_index] : null;
 
 </script>
 
-{#if selected_image_id}
-    <div class="overlay" on:click={e => selected_image_id = null} on:keydown={handle_image_key}>
+
+{#if selected_image}
+    <div class="overlay" on:click={close_image}>
         <div class="image">
             <img
-                src="http://127.0.0.1:8000/image/{selected_image_id}/"
-                alt="image with id {selected_image_id}"
+                src="http://127.0.0.1:8000/image/{selected_image.id}/"
+                alt="image with id {selected_image.id}"
             />
         </div>
     </div>
 {/if}
 
 <div class="image-grid">
-    {#if images}
-        {#each images as image}
+    {#if images?.length}
+        {#each images as image, idx}
             <div class="image">
                 <img
                     src="http://127.0.0.1:8000/image/{image.id}/"
                     alt="image with id {image.id}"
                     loading="lazy"
-                    data-id={image.id}
+                    data-index={idx}
                     on:click={handle_image_click}
                 />
                 <div>{image.score}</div>
