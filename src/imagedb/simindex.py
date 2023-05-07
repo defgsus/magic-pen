@@ -1,26 +1,27 @@
 from typing import List, Iterable, Optional, Tuple
 
-import sqlalchemy as sq
 from sqlalchemy.orm import Session
 import numpy as np
 import faiss
 from tqdm import tqdm
 
-from src.clip import DEFAULT_MODEL, MODEL_DIMENSIONS, get_text_features, get_image_features
+from src.config import DEFAULT_CLIP_MODEL
+from src.clip import MODEL_DIMENSIONS, get_text_features, get_image_features
 from .imagesql import ImageEntry, Embedding
-from .imagedb import ImageDB
 
 
 class SimIndex:
 
     def __init__(
             self,
-            db: ImageDB,
+            db: "ImageDB",
             model: Optional[str] = None,
             verbose: bool = False
     ):
-        self.db = db
-        self.model = model or DEFAULT_MODEL
+        from .imagedb import ImageDB
+
+        self.db: ImageDB = db
+        self.model = model or DEFAULT_CLIP_MODEL
         self.verbose = verbose
         self.dimensions = MODEL_DIMENSIONS[self.model]
         self._index_to_embedding_pk = []
@@ -74,7 +75,10 @@ class SimIndex:
 
         with self.db.sql_session(sql_session) as sql_session:
             return [
-                (self.db.get_image(id=self._index_to_image_pk[l], sql_session=sql_session), d)
+                (
+                    self.db.get_image(id=self._index_to_image_pk[l], sql_session=sql_session),
+                    float(d),
+                )
                 for d, l in zip(distances[0], labels[0])
                 if l >= 0
             ]

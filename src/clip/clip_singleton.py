@@ -8,8 +8,6 @@ from .device import get_torch_device
 
 CLIP_MODELS: List[str] = clip.available_models()
 
-DEFAULT_MODEL = "ViT-B/32"
-
 MODEL_DIMENSIONS = {
     "ViT-B/32": 512,
 }

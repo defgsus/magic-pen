@@ -6,7 +6,7 @@ import sqlalchemy as sq
 
 from src import log
 from src.imagedb import *
-from src.clip import DEFAULT_MODEL
+from src.config import DEFAULT_CLIP_MODEL
 
 
 def parse_args() -> dict:
@@ -32,8 +32,8 @@ def parse_args() -> dict:
     parser_update.set_defaults(command="update")
 
     parser_update.add_argument(
-        "-m", "--model", type=str, default=DEFAULT_MODEL,
-        help=f"Defines the CLIP model, default is '{DEFAULT_MODEL}'",
+        "-m", "--model", type=str, default=DEFAULT_CLIP_MODEL,
+        help=f"Defines the CLIP model, default is '{DEFAULT_CLIP_MODEL}'",
     )
     parser_update.add_argument(
         "-d", "--device", type=str, default="auto",
@@ -56,8 +56,8 @@ def parse_args() -> dict:
         help=f"Number of images to return",
     )
     parser_query.add_argument(
-        "-m", "--model", type=str, default=DEFAULT_MODEL,
-        help=f"Defines the CLIP model, default is '{DEFAULT_MODEL}'",
+        "-m", "--model", type=str, default=DEFAULT_CLIP_MODEL,
+        help=f"Defines the CLIP model, default is '{DEFAULT_CLIP_MODEL}'",
     )
     parser_query.add_argument(
         "-d", "--device", type=str, default="auto",
@@ -66,6 +66,18 @@ def parse_args() -> dict:
 
     parser_status = subparsers.add_parser("status", help="Print status of files in database")
     parser_status.set_defaults(command="status")
+
+    parser_server = subparsers.add_parser("server", help="Run database as http server")
+    parser_server.set_defaults(command="server")
+
+    parser_server.add_argument(
+        "--host", type=str, default="127.0.0.1",
+        help="Host of the server",
+    )
+    parser_server.add_argument(
+        "-p", "--port", type=int, default=8000,
+        help="Port of the server",
+    )
 
     return vars(parser.parse_args())
 
@@ -136,7 +148,7 @@ def command_query(
         print("Need to define text (-t/--text)")
         exit(1)
 
-    index = db.get_sim_index(model=model)
+    index = db.sim_index(model=model)
     for image_entry, score in index.images_by_text(prompt=text, count=count, device=device):
         print(f"{score:3.3f} {image_entry.filename()}")
 
@@ -145,26 +157,28 @@ def command_status(
         db: ImageDB,
         verbose: bool,
 ):
-    with db.sql_session() as session:
-        num_tags = session.query(ImageTag).count()
-        num_images = session.query(ImageEntry).count()
-        num_hashes = session.query(ContentHash).count()
-        num_embeddings = (
-            session
-                .query(Embedding, sq.func.count(Embedding.model))
-                .group_by(Embedding.model).all()
-        )
-        embedding_str = "\n".join(
-            f"  - {e[0].model:11} {e[1]:,}"
-            for e in sorted(num_embeddings, key=lambda e: e[0].model)
-        )
-        print(f"""
-tags:           {num_tags:,}
-images:         {num_images:,}
-content hashes: {num_hashes:,}
+    status = db.status()
+    embedding_str = "\n".join(
+        f"  - {e['model']:11} {e['count']:,}"
+        for e in status["embeddings"]
+    )
+    print(f"""
+tags:           {status["num_tags"]:,}
+images:         {status["num_images"]:,}
+content hashes: {status["num_hashes"]:,}
 embeddings:     
 {embedding_str}
-        """.strip())
+    """.strip())
+
+
+def command_server(
+        db: ImageDB,
+        host: str,
+        port: int,
+        verbose: bool,
+):
+    from src.imagedb.server import run_server
+    run_server(db=db, host=host, port=port, verbose=verbose)
 
 
 if __name__ == "__main__":

@@ -4,14 +4,15 @@ import torch
 import numpy as np
 import clip
 
+from src.config import DEFAULT_CLIP_MODEL
 from src.image import ImageType, resize_crop
-from .clip_singleton import ClipSingleton, DEFAULT_MODEL
+from .clip_singleton import ClipSingleton
 from .device import get_torch_device
 
 
 def get_text_features(
         text: Union[str, Iterable[str]],
-        model: str = DEFAULT_MODEL,
+        model: str = DEFAULT_CLIP_MODEL,
         device: str = "auto",
 ) -> np.ndarray:
     device = get_torch_device(device)
@@ -40,7 +41,7 @@ def get_text_features(
 
 def get_image_features(
         image: Union[ImageType, Iterable[ImageType]],
-        model: str = DEFAULT_MODEL,
+        model: str = DEFAULT_CLIP_MODEL,
         device: str = "auto",
 ) -> np.ndarray:
     device = get_torch_device(device)

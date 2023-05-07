@@ -1,3 +1,4 @@
+import os.path
 from pathlib import Path
 from typing import List, Iterable
 
@@ -71,6 +72,13 @@ class ImageEntry(ImageDBBase):
 
     def filename(self) -> Path:
         return Path(self.path) / self.name
+
+    def mime_type(self) -> str:
+        _, ext = os.path.splitext(self.name)
+        ext = ext[1:]
+        if ext == "jpg":
+            ext = "jpeg"
+        return f"image/{ext}"
 
     def load_pil(self) -> PIL.Image.Image:
         return PIL.Image.open(self.filename())

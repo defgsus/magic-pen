@@ -14,6 +14,7 @@ from src import log
 from src.config import DATABASE_PATH
 from src.image import is_image_filename
 from .imagesql import ImageDBBase, ImageEntry, ContentHash, Embedding, ImageTag
+from .simindex import SimIndex
 
 
 class ImageDB:
@@ -26,6 +27,7 @@ class ImageDB:
         self._database_path = Path(database_path) if database_path is not None else DATABASE_PATH
         self.verbose = verbose
         self._sql_engine: Optional[sq.Engine] = None
+        self._model_indices: Dict[str, SimIndex] = {}
 
     @property
     def database_path(self) -> Path:
@@ -289,8 +291,9 @@ class ImageDB:
             batch_size: int = 10,
             sql_session: Optional[Session] = None,
     ):
-        from src.clip import ClipSingleton, get_image_features, DEFAULT_MODEL
-        model = model or DEFAULT_MODEL
+        from src.config import DEFAULT_CLIP_MODEL
+        from src.clip import ClipSingleton, get_image_features
+        model = model or DEFAULT_CLIP_MODEL
 
         with self.sql_session(sql_session) as sql_session:
             hashes = sql_session.query(ContentHash).filter(
@@ -341,9 +344,31 @@ class ImageDB:
             else:
                 _update_all(None)
 
-    def get_sim_index(
+    def sim_index(
             self,
             model: Optional[str] = None,
-    ):
-        from .simindex import SimIndex
-        return SimIndex(db=self, model=model)
+    ) -> SimIndex:
+        if model not in self._model_indices:
+            self._model_indices[model] = SimIndex(db=self, model=model)
+
+        return self._model_indices[model]
+
+    def status(self, sql_session: Optional[Session] = None) -> dict:
+        with self.sql_session(sql_session) as session:
+            num_tags = session.query(ImageTag).count()
+            num_images = session.query(ImageEntry).count()
+            num_hashes = session.query(ContentHash).count()
+            num_embeddings = (
+                session
+                    .query(Embedding, sq.func.count(Embedding.model))
+                    .group_by(Embedding.model).all()
+            )
+            return {
+                "num_tags": num_tags,
+                "num_images": num_images,
+                "num_hashes": num_hashes,
+                "embeddings": [
+                    {"model": e[0].model, "count": e[1]}
+                    for e in sorted(num_embeddings, key=lambda e: e[0].model)
+                ]
+            }
