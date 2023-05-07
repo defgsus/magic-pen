@@ -6,8 +6,8 @@ from PyQt5.QtCore import *
 
 import qdarkstyle
 
-from src.app.generator.mainwindow import MainWindow
-from src.app.generator.client import Client
+from src.app.qgenerator.mainwindow import MainWindow
+from src.app.qgenerator.client import Client
 
 
 def main():

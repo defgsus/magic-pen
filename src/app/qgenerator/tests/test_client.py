@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 
 from src.hf import HuggingfaceSpace, ImageResult
-from src.app.generator.client import Client
+from src.app.qgenerator.client import Client
 
 
 class FakeSpace(HuggingfaceSpace):

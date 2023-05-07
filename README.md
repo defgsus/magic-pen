@@ -7,7 +7,7 @@ save all images to a `./results/` folder:
 ```shell
 pip install -r requirements.txt
 
-python src/app/generator
+python bin/qgenerator.py
 ```
 
 ![screenshot of generator](docs/img/generator-screenshot.png)
